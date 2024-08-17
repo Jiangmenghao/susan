@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">Susan</string>
+    <string name="video_link_input_placeholder">请输入视频链接</string>
+    <string name="video_link_error_hint">链接格式错误</string>
 </resources>
