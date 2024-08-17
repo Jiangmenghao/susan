@@ -1,6 +1,7 @@
 package com.example.susan
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -31,19 +32,24 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,6 +62,17 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.susan.ui.theme.SusanTheme
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import java.io.IOException
 import java.net.URL
 
 class MainActivity : ComponentActivity() {
@@ -64,8 +81,13 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SusanTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                val snackbarHostState = remember { SnackbarHostState() }
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+                ) { innerPadding ->
                     SusanAppLayout(
+                        snackbarHostState = snackbarHostState,
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(innerPadding)
@@ -79,7 +101,10 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun SusanAppLayout(modifier: Modifier = Modifier) {
+fun SusanAppLayout(
+    snackbarHostState: SnackbarHostState,
+    modifier: Modifier = Modifier
+) {
     Column(
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -92,16 +117,21 @@ fun SusanAppLayout(modifier: Modifier = Modifier) {
             fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Serif
         )
-        VideoLinkForm()
+        VideoLinkForm(snackbarHostState)
     }
 }
 
 @Composable
 fun VideoLinkForm(
+    snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier
 ) {
     var videoLink by remember { mutableStateOf("") }
     var isUrlValid by remember { mutableStateOf(true) }
+    var isLoading by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+    val apiUrl = stringResource(id = R.string.api_url)
+    var currentJob by remember { mutableStateOf<Job?>(null) }
 
     Column(
         verticalArrangement = Arrangement.Center,
@@ -112,13 +142,21 @@ fun VideoLinkForm(
             value = videoLink,
             onValueChange = { 
                 videoLink = it
-                isUrlValid = true // Reset validation state
+                isUrlValid = true
             },
             placeholder = {
                 Text(
                     text = stringResource(id = R.string.video_link_input_placeholder),
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    color = Color.Gray,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            trailingIcon = {
+                Icon(
+                    imageVector = Icons.Filled.Search,
+                    contentDescription = "搜索图标",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             },
             shape = RoundedCornerShape(32.dp),
@@ -133,14 +171,14 @@ fun VideoLinkForm(
                 }
             ),
             isError = !isUrlValid,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedBorderColor = Color.Black,
                 cursorColor = Color.Black,
                 errorBorderColor = Color.Red
-            )
+            ),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
         )
         
         if (!isUrlValid) {
@@ -160,18 +198,33 @@ fun VideoLinkForm(
             )
         ) {
             Button(
-                onClick = { handlePlayButtonClick(videoLink) { isUrlValid = it } },
+                onClick = { 
+                    currentJob = coroutineScope.launch {
+                        handlePlayButtonClick(
+                            videoLink,
+                            apiUrl,
+                            { isUrlValid = it },
+                            { isLoading = it },
+                            snackbarHostState
+                        )
+                    }
+                },
                 contentPadding = PaddingValues(0.dp),
                 shape = CircleShape,
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
+                enabled = !isLoading,
                 modifier = Modifier.size(64.dp)
             ) {
-                Icon(
-                    imageVector = Icons.Filled.PlayArrow,
-                    contentDescription = "Play",
-                    tint = Color.White,
-                    modifier = Modifier.size(48.dp)
-                )
+                if (isLoading) {
+                    CircularProgressIndicator(color = Color.White)
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.PlayArrow,
+                        contentDescription = "Play",
+                        tint = Color.White,
+                        modifier = Modifier.size(48.dp)
+                    )
+                }
             }
             
             AnimatedVisibility(
@@ -183,6 +236,9 @@ fun VideoLinkForm(
                     onClick = {
                         videoLink = ""
                         isUrlValid = true
+                        isLoading = false
+                        currentJob?.cancel()
+                        currentJob = null
                     },
                     contentPadding = PaddingValues(0.dp),
                     shape = CircleShape,
@@ -200,15 +256,58 @@ fun VideoLinkForm(
     }
 }
 
-fun handlePlayButtonClick(videoLink: String, updateUrlValidity: (Boolean) -> Unit) {
+suspend fun handlePlayButtonClick(
+    videoLink: String,
+    apiUrl: String,
+    updateUrlValidity: (Boolean) -> Unit,
+    updateLoadingState: (Boolean) -> Unit,
+    snackbarHostState: SnackbarHostState
+) {
     val isValid = isValidUrl(videoLink)
     updateUrlValidity(isValid)
     
     if (isValid) {
-        // TODO: 在这里添加播放视频或其他操作的逻辑
-        println("URL 有效,开始播放视频: $videoLink")
+        updateLoadingState(true)
+        try {
+            val response = withContext(Dispatchers.IO) {
+                sendPostRequest(apiUrl, videoLink)
+            }
+            Log.d("API_RESPONSE", "响应内容: $response")
+        } catch (e: Exception) {
+            if (e is CancellationException) {
+                Log.d("API_CANCELLED", "API request cancelled")
+            } else {
+                Log.e("API_ERROR", "解析失败: ${e.message}")
+                snackbarHostState.showSnackbar("解析失败，请稍后重试")
+            }
+        } finally {
+            updateLoadingState(false)
+        }
     } else {
-        println("无效的 URL")
+        Log.d("URL_VALIDATION", "无效的 URL")
+        snackbarHostState.showSnackbar("请输入正确的URL")
+    }
+}
+
+suspend fun sendPostRequest(urlString: String, videoLink: String): String {
+    return withContext(Dispatchers.IO) {
+        val client = OkHttpClient()
+        
+        val json = JSONObject().apply {
+            put("videoLink", videoLink)
+        }.toString()
+
+        val requestBody = json.toRequestBody("application/json".toMediaType())
+
+        val request = Request.Builder()
+            .url(urlString)
+            .post(requestBody)
+            .build()
+
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw IOException("Unexpected code $response")
+            return@withContext response.body?.string() ?: ""
+        }
     }
 }
 
