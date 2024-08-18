@@ -59,6 +59,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -138,7 +139,8 @@ fun VideoLinkForm(
     val apiUrl = stringResource(id = R.string.api_url)
     var currentJob by remember { mutableStateOf<Job?>(null) }
     
-    val context = LocalContext.current // 获取当前的 Context
+    val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
 
     Column(
         verticalArrangement = Arrangement.Center,
@@ -173,8 +175,21 @@ fun VideoLinkForm(
             ),
             keyboardActions = KeyboardActions(
                 onDone = {
-                    isUrlValid = isValidUrl(videoLink)
-                    // If URL is valid, you can perform further operations here
+                    focusManager.clearFocus()
+                    if (isValidUrl(videoLink)) {
+                        currentJob = coroutineScope.launch {
+                            handlePlayButtonClick(
+                                videoLink,
+                                apiUrl,
+                                { isUrlValid = it },
+                                { isLoading = it },
+                                snackbarHostState,
+                                context
+                            )
+                        }
+                    } else {
+                        isUrlValid = false
+                    }
                 }
             ),
             isError = !isUrlValid,
@@ -206,6 +221,7 @@ fun VideoLinkForm(
         ) {
             Button(
                 onClick = { 
+                    focusManager.clearFocus()
                     currentJob = coroutineScope.launch {
                         handlePlayButtonClick(
                             videoLink,
@@ -213,7 +229,7 @@ fun VideoLinkForm(
                             { isUrlValid = it },
                             { isLoading = it },
                             snackbarHostState,
-                            context // 传递获取到的 context
+                            context
                         )
                     }
                 },
