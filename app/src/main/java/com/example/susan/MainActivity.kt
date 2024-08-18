@@ -1,5 +1,9 @@
 package com.example.susan
 
+import android.app.Activity
+import android.app.ActivityOptions
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -54,6 +58,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -132,6 +137,8 @@ fun VideoLinkForm(
     val coroutineScope = rememberCoroutineScope()
     val apiUrl = stringResource(id = R.string.api_url)
     var currentJob by remember { mutableStateOf<Job?>(null) }
+    
+    val context = LocalContext.current // 获取当前的 Context
 
     Column(
         verticalArrangement = Arrangement.Center,
@@ -205,7 +212,8 @@ fun VideoLinkForm(
                             apiUrl,
                             { isUrlValid = it },
                             { isLoading = it },
-                            snackbarHostState
+                            snackbarHostState,
+                            context // 传递获取到的 context
                         )
                     }
                 },
@@ -261,7 +269,8 @@ suspend fun handlePlayButtonClick(
     apiUrl: String,
     updateUrlValidity: (Boolean) -> Unit,
     updateLoadingState: (Boolean) -> Unit,
-    snackbarHostState: SnackbarHostState
+    snackbarHostState: SnackbarHostState,
+    context: Context
 ) {
     val isValid = isValidUrl(videoLink)
     updateUrlValidity(isValid)
@@ -273,18 +282,34 @@ suspend fun handlePlayButtonClick(
                 sendPostRequest(apiUrl, videoLink)
             }
             Log.d("API_RESPONSE", "响应内容: $response")
-        } catch (e: Exception) {
-            if (e is CancellationException) {
-                Log.d("API_CANCELLED", "API request cancelled")
+            
+            val intent = Intent(context, PlayerActivity::class.java).apply {
+                putExtra("API_RESPONSE", response)  // 传递整个 API 响应
+            }
+            
+            if (context is Activity) {
+                val options = ActivityOptions.makeCustomAnimation(
+                    context,
+                    R.anim.slide_in_right,
+                    R.anim.slide_out_left
+                )
+                context.startActivity(intent, options.toBundle())
             } else {
-                Log.e("API_ERROR", "解析失败: ${e.message}")
-                snackbarHostState.showSnackbar("解析失败，请稍后重试")
+                context.startActivity(intent)
+            }
+        } catch (e: Exception) {
+            when (e) {
+                is CancellationException -> Log.d("API_CANCELLED", "API请求已取消")
+                else -> {
+                    Log.e("API_ERROR", "解析失败: ${e.message}")
+                    snackbarHostState.showSnackbar("解析失败，请稍后重试")
+                }
             }
         } finally {
             updateLoadingState(false)
         }
     } else {
-        Log.d("URL_VALIDATION", "无效的 URL")
+        Log.d("URL_VALIDATION", "无效的URL")
         snackbarHostState.showSnackbar("请输入正确的URL")
     }
 }
