@@ -190,6 +190,13 @@ class PlayerActivity : ComponentActivity() {
         }
     }
 
+    override fun onPause() {
+        super.onPause()
+        if (exoPlayer.isPlaying) {
+            exoPlayer.pause()
+        }
+    }
+
     override fun onDestroy() {
         super.onDestroy()
         exoPlayer.release()
