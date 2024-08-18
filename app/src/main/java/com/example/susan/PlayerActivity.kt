@@ -132,7 +132,8 @@ class PlayerActivity : ComponentActivity() {
                             onNextEpisode = { nextUrl ->
                                 handleNextEpisode(nextUrl)
                             },
-                            isLoading = isLoading.collectAsState().value
+                            isLoading = isLoading.collectAsState().value,
+                            onBackPressed = { finish() }
                         )
                     } ?: Text("视频信息未完全初始化")
                 }
@@ -210,7 +211,8 @@ fun PlayerScreen(
     exoPlayer: ExoPlayer,
     updateSystemUiVisibility: (Boolean, Boolean) -> Unit,
     onNextEpisode: (String) -> Unit,
-    isLoading: Boolean
+    isLoading: Boolean,
+    onBackPressed: () -> Unit
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var controllerVisible by remember { mutableStateOf(true) }
@@ -260,7 +262,7 @@ fun PlayerScreen(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = { /* 处理返回操作 */ }) {
+                        IconButton(onClick = onBackPressed) {
                             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                         }
                     },
