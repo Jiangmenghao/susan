@@ -68,17 +68,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.susan.ui.theme.SusanTheme
+import com.example.susan.utils.fetchApiResponse
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
-import java.io.IOException
 import java.net.URL
 
 class MainActivity : ComponentActivity() {
@@ -294,13 +287,11 @@ suspend fun handlePlayButtonClick(
     if (isValid) {
         updateLoadingState(true)
         try {
-            val response = withContext(Dispatchers.IO) {
-                sendPostRequest(apiUrl, videoLink)
-            }
+            val response = fetchApiResponse(apiUrl, videoLink)
             Log.d("API_RESPONSE", "响应内容: $response")
             
             val intent = Intent(context, PlayerActivity::class.java).apply {
-                putExtra("API_RESPONSE", response)  // 传递整个 API 响应
+                putExtra("API_RESPONSE", response)
             }
             
             if (context is Activity) {
@@ -327,28 +318,6 @@ suspend fun handlePlayButtonClick(
     } else {
         Log.d("URL_VALIDATION", "无效的URL")
         snackbarHostState.showSnackbar("请输入正确的URL")
-    }
-}
-
-suspend fun sendPostRequest(urlString: String, videoLink: String): String {
-    return withContext(Dispatchers.IO) {
-        val client = OkHttpClient()
-        
-        val json = JSONObject().apply {
-            put("videoLink", videoLink)
-        }.toString()
-
-        val requestBody = json.toRequestBody("application/json".toMediaType())
-
-        val request = Request.Builder()
-            .url(urlString)
-            .post(requestBody)
-            .build()
-
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) throw IOException("Unexpected code $response")
-            return@withContext response.body?.string() ?: ""
-        }
     }
 }
 

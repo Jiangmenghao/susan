@@ -2,16 +2,25 @@ package com.example.susan
 
 import android.content.res.Configuration
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -20,9 +29,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -32,7 +47,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,24 +58,34 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.example.susan.ui.theme.SusanTheme
+import com.example.susan.utils.fetchApiResponse
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 class PlayerActivity : ComponentActivity() {
-    private lateinit var apiResponse: JSONObject
+    private var apiResponse by mutableStateOf<JSONObject?>(null)
     private lateinit var exoPlayer: ExoPlayer
     private lateinit var insetsController: WindowInsetsControllerCompat
+    private val _isLoading = MutableStateFlow(false)
+    private val isLoading = _isLoading.asStateFlow()
 
     @androidx.annotation.OptIn(UnstableApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,10 +100,12 @@ class PlayerActivity : ComponentActivity() {
         }
 
         exoPlayer = ExoPlayer.Builder(this).build().apply {
-            val mediaItem = MediaItem.fromUri(apiResponse.getString("url"))
-            setMediaItem(mediaItem)
-            playWhenReady = true
-            prepare()
+            apiResponse?.let { response ->
+                val mediaItem = MediaItem.fromUri(response.getString("url"))
+                setMediaItem(mediaItem)
+                playWhenReady = true
+                prepare()
+            }
         }
 
         exoPlayer.addListener(object : Player.Listener {
@@ -95,11 +124,47 @@ class PlayerActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    if (::apiResponse.isInitialized) {
-                        PlayerScreen(apiResponse, exoPlayer, ::updateSystemUiVisibility)
-                    } else {
-                        Text("视频信息未完全初始化")
+                    apiResponse?.let { response ->
+                        PlayerScreen(
+                            apiResponse = response,
+                            exoPlayer = exoPlayer,
+                            updateSystemUiVisibility = ::updateSystemUiVisibility,
+                            onNextEpisode = { nextUrl ->
+                                handleNextEpisode(nextUrl)
+                            },
+                            isLoading = isLoading.collectAsState().value
+                        )
+                    } ?: Text("视频信息未完全初始化")
+                }
+            }
+        }
+    }
+
+    private fun handleNextEpisode(nextUrl: String) {
+        if (_isLoading.value) return
+
+        lifecycleScope.launch {
+            _isLoading.value = true
+            try {
+                val apiUrl = getString(R.string.api_url)
+                val response = fetchApiResponse(apiUrl, nextUrl)
+                Log.d("API_RESPONSE", "响应内容: $response")
+                withContext(Dispatchers.Main) {
+                    apiResponse = JSONObject(response)
+                    apiResponse?.let { newApiResponse ->
+                        exoPlayer.apply {
+                            val mediaItem = MediaItem.fromUri(newApiResponse.getString("url"))
+                            setMediaItem(mediaItem)
+                            prepare()
+                            play()
+                        }
                     }
+                }
+            } catch (e: Exception) {
+                Log.e("API_ERROR", "获取下一集失败", e)
+            } finally {
+                withContext(Dispatchers.Main) {
+                    _isLoading.value = false
                 }
             }
         }
@@ -134,16 +199,40 @@ class PlayerActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerScreen(
-    apiResponse: JSONObject, 
-    exoPlayer: ExoPlayer, 
-    updateSystemUiVisibility: (Boolean, Boolean) -> Unit
+    apiResponse: JSONObject,
+    exoPlayer: ExoPlayer,
+    updateSystemUiVisibility: (Boolean, Boolean) -> Unit,
+    onNextEpisode: (String) -> Unit,
+    isLoading: Boolean
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-
     var controllerVisible by remember { mutableStateOf(true) }
+
+    var isPlaying by remember { mutableStateOf(exoPlayer.isPlaying) }
+
+    DisposableEffect(exoPlayer) {
+        val listener = object : Player.Listener {
+            override fun onIsPlayingChanged(playing: Boolean) {
+                isPlaying = playing
+            }
+        }
+        exoPlayer.addListener(listener)
+
+        onDispose {
+            exoPlayer.removeListener(listener)
+        }
+    }
 
     LaunchedEffect(isLandscape, controllerVisible) {
         updateSystemUiVisibility(isLandscape, controllerVisible)
+    }
+
+    val hasNext by remember(apiResponse) {
+        mutableStateOf(apiResponse.has("next") && apiResponse.getString("next").isNotEmpty())
+    }
+
+    LaunchedEffect(hasNext) {
+        Log.d("PlayerScreen", "hasNext changed: $hasNext")
     }
 
     if (isLandscape) {
@@ -173,6 +262,7 @@ fun PlayerScreen(
             }
         ) { innerPadding ->
             Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .padding(innerPadding)
                     .fillMaxSize()
@@ -196,6 +286,73 @@ fun PlayerScreen(
                     Text(
                         text = "旋转屏幕进入全屏模式"
                     )
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.animateContentSize(
+                        animationSpec = tween(durationMillis = 300)
+                    )
+                ) {
+                    Button(
+                        onClick = {
+                            if (isPlaying) {
+                                exoPlayer.pause()
+                            } else {
+                                exoPlayer.play()
+                            }
+                        },
+                        contentPadding = PaddingValues(0.dp),
+                        shape = CircleShape,
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
+                        modifier = Modifier.size(64.dp)
+                    ) {
+                        if (isPlaying) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.baseline_pause_24),
+                                contentDescription = "暂停",
+                                tint = Color.White,
+                                modifier = Modifier.size(48.dp)
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Default.PlayArrow,
+                                contentDescription = "播放",
+                                tint = Color.White,
+                                modifier = Modifier.size(48.dp)
+                            )
+                        }
+                    }
+                    AnimatedVisibility(
+                        visible = hasNext,
+                        enter = fadeIn() + slideInHorizontally(),
+                        exit = fadeOut() + slideOutHorizontally()
+                    ) {
+                        Button(
+                            onClick = {
+                                if (!isLoading) {
+                                    val nextUrl = apiResponse.getString("next")
+                                    onNextEpisode(nextUrl)
+                                }
+                            },
+                            contentPadding = PaddingValues(0.dp),
+                            shape = CircleShape,
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
+                            modifier = Modifier.size(64.dp),
+                            enabled = !isLoading
+                        ) {
+                            if (isLoading) {
+                                CircularProgressIndicator(color = Color.White)
+                            } else {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                    contentDescription = "下一集",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(48.dp)
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -238,11 +395,4 @@ fun VideoPlayer(
                 .aspectRatio(16f / 9f)
         }.background(Color.Black)
     )
-}
-
-@Composable
-fun DanmakuView(danmakuApiUrl: String) {
-    // 实现弹幕 View
-    // 这里需要根据弹幕 API 的具体格式来实现
-    // 可以使用自定义 View 或第三方弹幕库
 }
