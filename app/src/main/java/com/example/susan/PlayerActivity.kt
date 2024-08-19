@@ -173,10 +173,12 @@ class PlayerActivity : ComponentActivity() {
 
     private fun updateSystemUiVisibility(isLandscape: Boolean, controllerVisible: Boolean) {
         if (isLandscape) {
+            insetsController.hide(WindowInsetsCompat.Type.navigationBars())
+            
             if (controllerVisible) {
-                insetsController.show(WindowInsetsCompat.Type.systemBars())
+                insetsController.show(WindowInsetsCompat.Type.statusBars())
             } else {
-                insetsController.hide(WindowInsetsCompat.Type.systemBars())
+                insetsController.hide(WindowInsetsCompat.Type.statusBars())
             }
         } else {
             insetsController.show(WindowInsetsCompat.Type.systemBars())
