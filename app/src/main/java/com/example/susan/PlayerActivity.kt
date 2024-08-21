@@ -1,7 +1,13 @@
 package com.example.susan
 
+import android.content.Context
 import android.content.res.Configuration
+import android.media.AudioManager
+import android.os.Build
 import android.os.Bundle
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
@@ -14,11 +20,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,6 +51,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -57,6 +71,8 @@ import org.json.JSONObject
 class PlayerActivity : ComponentActivity() {
     private var videoData by mutableStateOf<Video?>(null)
     private lateinit var player: ExoPlayer
+    private lateinit var audioManager: AudioManager
+    private var isMuted by mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -86,6 +102,8 @@ class PlayerActivity : ComponentActivity() {
             player.playWhenReady = true
         }
 
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+
         enableEdgeToEdge()
         setContent {
             SusanTheme {
@@ -94,7 +112,9 @@ class PlayerActivity : ComponentActivity() {
                         video = it,
                         player = player,
                         window = window,
-                        onBackPressed = { finish() }
+                        onBackPressed = { finish() },
+                        isMuted = isMuted,
+                        onToggleMute = { toggleMute() }
                     )
                 } ?: Text("视频信息未完全初始化")
             }
@@ -106,6 +126,44 @@ class PlayerActivity : ComponentActivity() {
             window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         } else {
             window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
+    fun changeVolume(increase: Boolean) {
+        val direction = if (increase) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER
+        audioManager.adjustStreamVolume(
+            AudioManager.STREAM_MUSIC,
+            direction,
+            AudioManager.FLAG_SHOW_UI
+        )
+
+        vibrateDevice()
+    }
+
+    private fun toggleMute() {
+        isMuted = !isMuted
+        audioManager.adjustStreamVolume(
+            AudioManager.STREAM_MUSIC,
+            if (isMuted) AudioManager.ADJUST_MUTE else AudioManager.ADJUST_UNMUTE,
+            0
+        )
+        vibrateDevice()
+    }
+
+    private fun vibrateDevice() {
+        val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+            vibratorManager.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator.vibrate(VibrationEffect.createOneShot(20, VibrationEffect.DEFAULT_AMPLITUDE))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(20)
         }
     }
 
@@ -126,12 +184,16 @@ fun AppLayout(
     player: ExoPlayer,
     onBackPressed: () -> Unit,
     window: Window,
+    isMuted: Boolean,
+    onToggleMute: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
+    val context = LocalContext.current
+    val activity = context as? PlayerActivity
 
     val showSnackbar: (String) -> Unit = { message ->
         scope.launch {
@@ -157,6 +219,11 @@ fun AppLayout(
             onBackPressed = onBackPressed,
             snackbarHostState = snackbarHostState,
             showSnackbar = showSnackbar,
+            onVolumeChange = { increase ->
+                activity?.changeVolume(increase)
+            },
+            onToggleMute = onToggleMute,
+            isMuted = isMuted,
             modifier = modifier
         )
     }
@@ -187,6 +254,9 @@ fun PortraitLayout(
     onBackPressed: () -> Unit,
     snackbarHostState: SnackbarHostState,
     showSnackbar: (String) -> Unit,
+    onVolumeChange: (Boolean) -> Unit,
+    onToggleMute: () -> Unit,
+    isMuted: Boolean,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -234,6 +304,11 @@ fun PortraitLayout(
                     text = "旋转屏幕进入全屏模式"
                 )
             }
+            RemoteController(
+                onVolumeChange = onVolumeChange,
+                onToggleMute = onToggleMute,
+                isMuted = isMuted
+            )
         }
     }
 }
@@ -260,4 +335,88 @@ fun VideoPlayer(
             .fillMaxSize()
             .background(Color.Black)
     )
+}
+
+@Composable
+fun RemoteController(
+    onVolumeChange: (Boolean) -> Unit,
+    onToggleMute: () -> Unit,
+    isMuted: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(24.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxHeight()
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            IconButton(
+                onClick = { /* 下一集逻辑 */ },
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(Color.Black, CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = "下一集",
+                    tint = Color.White,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+            IconButton(
+                onClick = onToggleMute,
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(Color.Black, CircleShape)
+            ) {
+                Icon(
+                    painter = painterResource(
+                        id = if (isMuted) R.drawable.baseline_volume_off_24
+                        else R.drawable.baseline_volume_up_24
+                    ),
+                    contentDescription = if (isMuted) "取消静音" else "静音",
+                    tint = Color.White,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+        }
+        
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = modifier
+                .background(Color.Black, RoundedCornerShape(percent = 50))
+        ) {
+            IconButton(
+                onClick = { onVolumeChange(true) },
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(Color.Black, CircleShape)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "音量增加",
+                    tint = Color.White,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+
+            IconButton(
+                onClick = { onVolumeChange(false) },
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(Color.Black, CircleShape)
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.baseline_remove_24),
+                    contentDescription = "音量减少",
+                    tint = Color.White,
+                    modifier = Modifier.size(32.dp)
+                )
+            }
+        }
+    }
 }
