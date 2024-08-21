@@ -3,6 +3,7 @@ package com.example.susan
 import android.content.res.Configuration
 import android.os.Bundle
 import android.view.ViewGroup
+import android.view.Window
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -41,6 +42,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
@@ -89,6 +93,7 @@ class PlayerActivity : ComponentActivity() {
                     AppLayout(
                         video = it,
                         player = player,
+                        window = window,
                         onBackPressed = { finish() }
                     )
                 } ?: Text("视频信息未完全初始化")
@@ -120,11 +125,13 @@ fun AppLayout(
     video: Video,
     player: ExoPlayer,
     onBackPressed: () -> Unit,
+    window: Window,
     modifier: Modifier = Modifier
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
 
     val showSnackbar: (String) -> Unit = { message ->
         scope.launch {
@@ -133,6 +140,8 @@ fun AppLayout(
     }
 
     if (isLandscape) {
+        windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
         LandscapeLayout(
             player = player,
             snackbarHostState = snackbarHostState,
@@ -140,6 +149,8 @@ fun AppLayout(
             modifier = modifier
         )
     } else {
+        windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
+        windowInsetsController.show((WindowInsetsCompat.Type.systemBars()))
         PortraitLayout(
             player = player,
             video = video,
