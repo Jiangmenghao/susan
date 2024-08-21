@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -23,10 +24,15 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,6 +47,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.example.susan.ui.theme.SusanTheme
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 class PlayerActivity : ComponentActivity() {
@@ -116,9 +123,20 @@ fun AppLayout(
     modifier: Modifier = Modifier
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    val showSnackbar: (String) -> Unit = { message ->
+        scope.launch {
+            snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
+        }
+    }
+
     if (isLandscape) {
         LandscapeLayout(
             player = player,
+            snackbarHostState = snackbarHostState,
+            showSnackbar = showSnackbar,
             modifier = modifier
         )
     } else {
@@ -126,14 +144,28 @@ fun AppLayout(
             player = player,
             video = video,
             onBackPressed = onBackPressed,
+            snackbarHostState = snackbarHostState,
+            showSnackbar = showSnackbar,
             modifier = modifier
         )
     }
 }
 
 @Composable
-fun LandscapeLayout(player: ExoPlayer, modifier: Modifier = Modifier) {
-    VideoPlayer(player = player, modifier = modifier)
+fun LandscapeLayout(
+    player: ExoPlayer,
+    snackbarHostState: SnackbarHostState,
+    showSnackbar: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    showSnackbar("旋转至竖屏，可退出全屏模式")
+    Box(modifier = modifier.fillMaxSize()) {
+        VideoPlayer(player = player, modifier = Modifier.fillMaxSize())
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier.align(Alignment.BottomCenter)
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -142,6 +174,8 @@ fun PortraitLayout(
     player: ExoPlayer,
     video: Video,
     onBackPressed: () -> Unit,
+    snackbarHostState: SnackbarHostState,
+    showSnackbar: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -161,6 +195,7 @@ fun PortraitLayout(
                 }
             )
         },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         modifier = modifier.fillMaxSize()
     ) { innerPadding ->
         Column(
