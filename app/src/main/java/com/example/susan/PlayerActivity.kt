@@ -33,6 +33,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -44,8 +45,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,12 +58,14 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.example.susan.ui.theme.SusanTheme
+import com.example.susan.utils.fetchApiResponse
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
@@ -73,6 +74,8 @@ class PlayerActivity : ComponentActivity() {
     private lateinit var player: ExoPlayer
     private lateinit var audioManager: AudioManager
     private var isMuted by mutableStateOf(false)
+    private var isLoading by mutableStateOf(false)
+    private lateinit var snackbarHostState: SnackbarHostState
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -104,6 +107,8 @@ class PlayerActivity : ComponentActivity() {
 
         audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
+        snackbarHostState = SnackbarHostState()
+
         enableEdgeToEdge()
         setContent {
             SusanTheme {
@@ -114,10 +119,19 @@ class PlayerActivity : ComponentActivity() {
                         window = window,
                         onBackPressed = { finish() },
                         isMuted = isMuted,
-                        onToggleMute = { toggleMute() }
+                        onToggleMute = { toggleMute() },
+                        isLoading = isLoading,
+                        onNextVideo = { loadNextVideo() },
+                        snackbarHostState = snackbarHostState
                     )
                 } ?: Text("视频信息未完全初始化")
             }
+        }
+    }
+
+    fun showSnackbar(message: String) {
+        lifecycleScope.launch {
+            snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
         }
     }
 
@@ -167,6 +181,34 @@ class PlayerActivity : ComponentActivity() {
         }
     }
 
+    private fun loadNextVideo() {
+        vibrateDevice()
+        videoData?.next?.let { nextUrl ->
+            isLoading = true
+            lifecycleScope.launch {
+                try {
+                    val apiUrl = getString(R.string.api_url)
+                    val apiResponse = fetchApiResponse(apiUrl, nextUrl)
+                    val jsonData = JSONObject(apiResponse)
+                    val newVideo = Video(
+                        url = jsonData.getString("url"),
+                        name = if (jsonData.has("name")) jsonData.getString("name") else null,
+                        next = if (jsonData.has("next")) jsonData.getString("next") else null,
+                        ggdmapi = if (jsonData.has("ggdmapi")) jsonData.getString("ggdmapi") else null
+                    )
+                    videoData = newVideo
+                    player.setMediaItem(MediaItem.fromUri(newVideo.url))
+                    player.prepare()
+                    player.playWhenReady = true
+                } catch (e: Exception) {
+                    showSnackbar("加载下一集失败：${e.message}")
+                } finally {
+                    isLoading = false
+                }
+            }
+        } ?: showSnackbar("无下一集")
+    }
+
     override fun onPause() {
         super.onPause()
         player.pause()
@@ -186,20 +228,15 @@ fun AppLayout(
     window: Window,
     isMuted: Boolean,
     onToggleMute: () -> Unit,
+    isLoading: Boolean,
+    onNextVideo: () -> Unit,
+    snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
     val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
     val context = LocalContext.current
     val activity = context as? PlayerActivity
-
-    val showSnackbar: (String) -> Unit = { message ->
-        scope.launch {
-            snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
-        }
-    }
 
     if (isLandscape) {
         windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -207,9 +244,9 @@ fun AppLayout(
         LandscapeLayout(
             player = player,
             snackbarHostState = snackbarHostState,
-            showSnackbar = showSnackbar,
             modifier = modifier
         )
+        activity?.showSnackbar("旋转至竖屏，可退出全屏模式")
     } else {
         windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
         windowInsetsController.show((WindowInsetsCompat.Type.systemBars()))
@@ -218,12 +255,13 @@ fun AppLayout(
             video = video,
             onBackPressed = onBackPressed,
             snackbarHostState = snackbarHostState,
-            showSnackbar = showSnackbar,
             onVolumeChange = { increase ->
                 activity?.changeVolume(increase)
             },
             onToggleMute = onToggleMute,
             isMuted = isMuted,
+            isLoading = isLoading,
+            onNextVideo = onNextVideo,
             modifier = modifier
         )
     }
@@ -233,10 +271,8 @@ fun AppLayout(
 fun LandscapeLayout(
     player: ExoPlayer,
     snackbarHostState: SnackbarHostState,
-    showSnackbar: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    showSnackbar("旋转至竖屏，可退出全屏模式")
     Box(modifier = modifier.fillMaxSize()) {
         VideoPlayer(player = player, modifier = Modifier.fillMaxSize())
         SnackbarHost(
@@ -253,10 +289,11 @@ fun PortraitLayout(
     video: Video,
     onBackPressed: () -> Unit,
     snackbarHostState: SnackbarHostState,
-    showSnackbar: (String) -> Unit,
     onVolumeChange: (Boolean) -> Unit,
     onToggleMute: () -> Unit,
     isMuted: Boolean,
+    isLoading: Boolean,
+    onNextVideo: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -307,7 +344,9 @@ fun PortraitLayout(
             RemoteController(
                 onVolumeChange = onVolumeChange,
                 onToggleMute = onToggleMute,
-                isMuted = isMuted
+                isMuted = isMuted,
+                isLoading = isLoading,
+                onNextVideo = onNextVideo
             )
         }
     }
@@ -342,6 +381,8 @@ fun RemoteController(
     onVolumeChange: (Boolean) -> Unit,
     onToggleMute: () -> Unit,
     isMuted: Boolean,
+    isLoading: Boolean,
+    onNextVideo: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -354,17 +395,25 @@ fun RemoteController(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             IconButton(
-                onClick = { /* 下一集逻辑 */ },
+                onClick = onNextVideo,
+                enabled = !isLoading,
                 modifier = Modifier
                     .size(64.dp)
                     .background(Color.Black, CircleShape)
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = "下一集",
-                    tint = Color.White,
-                    modifier = Modifier.size(32.dp)
-                )
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = "下一集",
+                        tint = Color.White,
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
             }
             IconButton(
                 onClick = onToggleMute,
