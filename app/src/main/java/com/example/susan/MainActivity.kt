@@ -6,7 +6,9 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
@@ -50,6 +52,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -75,11 +78,32 @@ import kotlinx.coroutines.launch
 import java.net.URL
 
 class MainActivity : ComponentActivity() {
+    private var backPressedTime: Long = 0
+    private val BACK_PRESS_INTERVAL = 2000 // 2秒内再次按返回键退出应用
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
             SusanTheme {
+                val context = LocalContext.current
+                DisposableEffect(Unit) {
+                    val callback = object : OnBackPressedCallback(true) {
+                        override fun handleOnBackPressed() {
+                            if (backPressedTime + BACK_PRESS_INTERVAL > System.currentTimeMillis()) {
+                                finish()
+                            } else {
+                                Toast.makeText(context, "再按一次退出Susan", Toast.LENGTH_SHORT).show()
+                                backPressedTime = System.currentTimeMillis()
+                            }
+                        }
+                    }
+                    onBackPressedDispatcher.addCallback(callback)
+                    onDispose {
+                        callback.remove()
+                    }
+                }
+
                 val snackbarHostState = remember { SnackbarHostState() }
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
