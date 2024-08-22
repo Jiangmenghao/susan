@@ -11,12 +11,12 @@ import android.os.VibratorManager
 import android.view.ViewGroup
 import android.view.Window
 import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -258,12 +258,11 @@ fun AppLayout(
     if (isLandscape) {
         windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
+        Toast.makeText(context, "旋转至竖屏，可退出全屏模式", Toast.LENGTH_SHORT).show()
         LandscapeLayout(
             player = player,
-            snackbarHostState = snackbarHostState,
             modifier = modifier
         )
-        activity?.showSnackbar("旋转至竖屏，可退出全屏模式")
     } else {
         windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_DEFAULT
         windowInsetsController.show((WindowInsetsCompat.Type.systemBars()))
@@ -287,16 +286,9 @@ fun AppLayout(
 @Composable
 fun LandscapeLayout(
     player: ExoPlayer,
-    snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
-        VideoPlayer(player = player, modifier = Modifier.fillMaxSize())
-        SnackbarHost(
-            hostState = snackbarHostState,
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
-    }
+    VideoPlayer(player = player, modifier = modifier.fillMaxSize())
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
