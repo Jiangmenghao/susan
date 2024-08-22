@@ -38,7 +38,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -63,6 +62,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -176,12 +176,14 @@ fun VideoLinkForm(
                     text = stringResource(id = R.string.video_link_input_placeholder),
                     textAlign = TextAlign.Center,
                     color = Color.Gray,
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(end = 24.dp)
                 )
             },
-            trailingIcon = {
+            leadingIcon = {
                 Icon(
-                    imageVector = Icons.Filled.Search,
+                    painter = painterResource(id = R.drawable.baseline_link_24),
                     contentDescription = "搜索图标",
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
