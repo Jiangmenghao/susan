@@ -1,4 +1,4 @@
-package com.example.susan.ui.theme
+package dev.letconst.susan.ui.theme
 
 import android.app.Activity
 import android.os.Build

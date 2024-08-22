@@ -1,4 +1,4 @@
-package com.example.susan
+package dev.letconst.susan
 
 import android.content.Context
 import android.content.res.Configuration
@@ -64,8 +64,8 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
-import com.example.susan.ui.theme.SusanTheme
-import com.example.susan.utils.fetchApiResponse
+import dev.letconst.susan.ui.theme.SusanTheme
+import dev.letconst.susan.utils.fetchApiResponse
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.json.JSONObject

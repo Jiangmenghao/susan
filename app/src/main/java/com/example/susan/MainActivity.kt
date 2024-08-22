@@ -1,4 +1,4 @@
-package com.example.susan
+package dev.letconst.susan
 
 import android.app.Activity
 import android.app.ActivityOptions
@@ -70,9 +70,9 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.example.susan.ui.theme.SusanTheme
-import com.example.susan.utils.fetchApiResponse
-import com.example.susan.utils.formatUrl
+import dev.letconst.susan.ui.theme.SusanTheme
+import dev.letconst.susan.utils.fetchApiResponse
+import dev.letconst.susan.utils.formatUrl
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch

@@ -1,4 +1,4 @@
-package com.example.susan.utils
+package dev.letconst.susan.utils
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

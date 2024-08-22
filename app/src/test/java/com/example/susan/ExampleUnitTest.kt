@@ -1,4 +1,4 @@
-package com.example.susan
+package dev.letconst.susan
 
 import org.junit.Test
 
