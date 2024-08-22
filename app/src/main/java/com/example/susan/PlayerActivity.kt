@@ -66,6 +66,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.example.susan.ui.theme.SusanTheme
 import com.example.susan.utils.fetchApiResponse
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
@@ -76,6 +77,7 @@ class PlayerActivity : ComponentActivity() {
     private var isMuted by mutableStateOf(false)
     private var isLoading by mutableStateOf(false)
     private lateinit var snackbarHostState: SnackbarHostState
+    private var snackbarJob: Job? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -130,8 +132,14 @@ class PlayerActivity : ComponentActivity() {
     }
 
     fun showSnackbar(message: String) {
-        lifecycleScope.launch {
-            snackbarHostState.showSnackbar(message = message, duration = SnackbarDuration.Short)
+        snackbarJob?.cancel()
+        
+        snackbarJob = lifecycleScope.launch {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(
+                message = message,
+                duration = SnackbarDuration.Short
+            )
         }
     }
 
@@ -144,14 +152,20 @@ class PlayerActivity : ComponentActivity() {
     }
 
     fun changeVolume(increase: Boolean) {
+        vibrateDevice()
+
         val direction = if (increase) AudioManager.ADJUST_RAISE else AudioManager.ADJUST_LOWER
         audioManager.adjustStreamVolume(
             AudioManager.STREAM_MUSIC,
             direction,
-            AudioManager.FLAG_SHOW_UI
+            0
         )
 
-        vibrateDevice()
+        val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        val volumePercentage = (currentVolume.toFloat() / maxVolume * 100).toInt()
+
+        showSnackbar("音量已调至：$volumePercentage%")
     }
 
     private fun toggleMute() {
@@ -162,6 +176,7 @@ class PlayerActivity : ComponentActivity() {
             0
         )
         vibrateDevice()
+        showSnackbar(if (isMuted) "已静音" else "已取消静音")
     }
 
     private fun vibrateDevice() {
@@ -185,6 +200,7 @@ class PlayerActivity : ComponentActivity() {
         vibrateDevice()
         videoData?.next?.let { nextUrl ->
             isLoading = true
+            showSnackbar("正在加载下一集")
             lifecycleScope.launch {
                 try {
                     val apiUrl = getString(R.string.api_url)
@@ -200,6 +216,7 @@ class PlayerActivity : ComponentActivity() {
                     player.setMediaItem(MediaItem.fromUri(newVideo.url))
                     player.prepare()
                     player.playWhenReady = true
+                    showSnackbar("下一集加载完成")
                 } catch (e: Exception) {
                     showSnackbar("加载下一集失败：${e.message}")
                 } finally {
