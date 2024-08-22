@@ -72,6 +72,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.susan.ui.theme.SusanTheme
 import com.example.susan.utils.fetchApiResponse
+import com.example.susan.utils.formatUrl
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -79,7 +80,7 @@ import java.net.URL
 
 class MainActivity : ComponentActivity() {
     private var backPressedTime: Long = 0
-    private val BACK_PRESS_INTERVAL = 2000 // 2秒内再次按返回键退出应用
+    private val BACK_PRESS_INTERVAL = 2000
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -311,8 +312,7 @@ suspend fun handlePlayButtonClick(
     if (isValid) {
         updateLoadingState(true)
         try {
-            val response = fetchApiResponse(apiUrl, videoLink)
-            Log.d("API_RESPONSE", "响应内容: $response")
+            val response = fetchApiResponse(apiUrl, formatUrl(videoLink))
             
             val intent = Intent(context, PlayerActivity::class.java).apply {
                 putExtra("API_RESPONSE", response)
