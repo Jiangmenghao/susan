@@ -132,7 +132,7 @@ class PlayerActivity : ComponentActivity() {
         }
     }
 
-    fun showSnackbar(message: String) {
+    private fun showSnackbar(message: String) {
         snackbarJob?.cancel()
         
         snackbarJob = lifecycleScope.launch {
