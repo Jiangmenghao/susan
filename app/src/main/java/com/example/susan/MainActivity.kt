@@ -21,7 +21,6 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -38,14 +37,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledIconButton
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -59,7 +56,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
@@ -175,7 +171,6 @@ fun VideoLinkForm(
                 Text(
                     text = stringResource(id = R.string.video_link_input_placeholder),
                     textAlign = TextAlign.Center,
-                    color = Color.Gray,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(end = 24.dp)
@@ -184,8 +179,7 @@ fun VideoLinkForm(
             leadingIcon = {
                 Icon(
                     painter = painterResource(id = R.drawable.baseline_link_24),
-                    contentDescription = "搜索图标",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    contentDescription = null
                 )
             },
             shape = RoundedCornerShape(32.dp),
@@ -213,11 +207,6 @@ fun VideoLinkForm(
                 }
             ),
             isError = !isUrlValid,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = Color.Black,
-                cursorColor = Color.Black,
-                errorBorderColor = Color.Red
-            ),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -226,7 +215,7 @@ fun VideoLinkForm(
         if (!isUrlValid) {
             Text(
                 text = stringResource(id = R.string.video_link_error_hint),
-                color = Color.Red,
+                color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.padding(top = 4.dp)
             )
         }
@@ -239,7 +228,7 @@ fun VideoLinkForm(
                 animationSpec = tween(durationMillis = 300)
             )
         ) {
-            Button(
+            FilledIconButton(
                 onClick = { 
                     focusManager.clearFocus()
                     currentJob = coroutineScope.launch {
@@ -253,19 +242,16 @@ fun VideoLinkForm(
                         )
                     }
                 },
-                contentPadding = PaddingValues(0.dp),
                 shape = CircleShape,
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
                 enabled = !isLoading,
                 modifier = Modifier.size(64.dp)
             ) {
                 if (isLoading) {
-                    CircularProgressIndicator(color = Color.White)
+                    CircularProgressIndicator()
                 } else {
                     Icon(
                         imageVector = Icons.Filled.PlayArrow,
                         contentDescription = "Play",
-                        tint = Color.White,
                         modifier = Modifier.size(48.dp)
                     )
                 }
@@ -276,7 +262,7 @@ fun VideoLinkForm(
                 enter = fadeIn() + slideInHorizontally(),
                 exit = fadeOut() + slideOutHorizontally()
             ) {
-                OutlinedButton(
+                FilledTonalIconButton(
                     onClick = {
                         videoLink = ""
                         isUrlValid = true
@@ -284,14 +270,12 @@ fun VideoLinkForm(
                         currentJob?.cancel()
                         currentJob = null
                     },
-                    contentPadding = PaddingValues(0.dp),
                     shape = CircleShape,
                     modifier = Modifier.size(64.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Clear,
                         contentDescription = "Clear",
-                        tint = Color.Black,
                         modifier = Modifier.size(48.dp)
                     )
                 }

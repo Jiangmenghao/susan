@@ -25,7 +25,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -35,8 +34,10 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -403,32 +404,27 @@ fun RemoteController(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            IconButton(
+            FilledTonalIconButton(
                 onClick = onNextVideo,
                 enabled = !isLoading,
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(Color.Black, CircleShape)
+                modifier = Modifier.size(64.dp)
             ) {
                 if (isLoading) {
                     CircularProgressIndicator(
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.size(32.dp)
                     )
                 } else {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowForward,
                         contentDescription = "下一集",
-                        tint = Color.White,
                         modifier = Modifier.size(32.dp)
                     )
                 }
             }
-            IconButton(
+            FilledTonalIconButton(
                 onClick = onToggleMute,
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(Color.Black, CircleShape)
+                modifier = Modifier.size(64.dp)
             ) {
                 Icon(
                     painter = painterResource(
@@ -436,7 +432,6 @@ fun RemoteController(
                         else R.drawable.baseline_volume_up_24
                     ),
                     contentDescription = if (isMuted) "取消静音" else "静音",
-                    tint = Color.White,
                     modifier = Modifier.size(32.dp)
                 )
             }
@@ -446,32 +441,26 @@ fun RemoteController(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = modifier
-                .background(Color.Black, RoundedCornerShape(percent = 50))
+                .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(percent = 50))
         ) {
-            IconButton(
+            FilledTonalIconButton(
                 onClick = { onVolumeChange(true) },
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(Color.Black, CircleShape)
+                modifier = Modifier.size(64.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = "音量增加",
-                    tint = Color.White,
                     modifier = Modifier.size(32.dp)
                 )
             }
 
-            IconButton(
+            FilledTonalIconButton(
                 onClick = { onVolumeChange(false) },
-                modifier = Modifier
-                    .size(64.dp)
-                    .background(Color.Black, CircleShape)
+                modifier = Modifier.size(64.dp)
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.baseline_remove_24),
                     contentDescription = "音量减少",
-                    tint = Color.White,
                     modifier = Modifier.size(32.dp)
                 )
             }
