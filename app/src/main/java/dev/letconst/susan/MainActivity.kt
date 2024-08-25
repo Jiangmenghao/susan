@@ -2,6 +2,7 @@ package dev.letconst.susan
 
 import android.app.Activity
 import android.app.ActivityOptions
+import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -66,9 +67,11 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.ViewModelProvider
 import dev.letconst.susan.ui.theme.SusanTheme
 import dev.letconst.susan.utils.fetchApiResponse
 import dev.letconst.susan.utils.formatUrl
+import dev.letconst.susan.viewmodels.UpdateViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -77,9 +80,24 @@ import java.net.URL
 class MainActivity : ComponentActivity() {
     private var backPressedTime: Long = 0
     private val BACK_PRESS_INTERVAL = 2000
+    private lateinit var updateViewModel: UpdateViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        updateViewModel = ViewModelProvider(
+            this,
+            ViewModelProvider.AndroidViewModelFactory.getInstance(application)
+        )[UpdateViewModel::class.java]
+
+        updateViewModel.updateAvailable.observe(this) { isAvailable ->
+            if (isAvailable && !updateViewModel.updateDialogShown) {
+                showUpdateDialog()
+                updateViewModel.setUpdateDialogShown(true)
+            }
+        }
+        updateViewModel.checkForUpdates()
+
         enableEdgeToEdge()
         setContent {
             SusanTheme {
@@ -117,6 +135,17 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    private fun showUpdateDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("有版本更新 (${updateViewModel.updateVersion.value})")
+            .setMessage(updateViewModel.updateDescription.value)
+            .setPositiveButton("立即更新") { _, _ ->
+                updateViewModel.downloadAndInstallApk()
+            }
+            .setNegativeButton("下次提醒", null)
+            .show()
     }
 }
 
