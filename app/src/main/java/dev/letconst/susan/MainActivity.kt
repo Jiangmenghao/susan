@@ -2,7 +2,6 @@ package dev.letconst.susan
 
 import android.app.Activity
 import android.app.ActivityOptions
-import android.app.AlertDialog
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -39,6 +38,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
@@ -50,6 +50,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -86,6 +87,7 @@ class MainActivity : ComponentActivity() {
     private var backPressedTime: Long = 0
     private val backPressInterval = 2000
     private lateinit var updateViewModel: UpdateViewModel
+    private var showUpdateDialog by mutableStateOf(false)
     private var showDownloadProgress by mutableStateOf(false)
     private var downloadProgress by mutableFloatStateOf(0f)
 
@@ -99,8 +101,7 @@ class MainActivity : ComponentActivity() {
 
         updateViewModel.updateAvailable.observe(this) { isAvailable ->
             if (isAvailable && !updateViewModel.updateDialogShown) {
-                showUpdateDialog()
-                updateViewModel.setUpdateDialogShown(true)
+                showUpdateDialog = true
             }
         }
 
@@ -131,6 +132,23 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
+                if (showUpdateDialog) {
+                    ShowUpdateDialog(
+                        updateVersion = updateViewModel.updateVersion.value ?: "Unknown",
+                        updateDescription = updateViewModel.updateDescription.value ?: "",
+                        onDismissRequest = {
+                            updateViewModel.setUpdateDialogShown(true)
+                            showUpdateDialog = false
+                        },
+                        onConfirmRequest = {
+                            updateViewModel.setUpdateDialogShown(true)
+                            showUpdateDialog = false
+                            showDownloadProgress = true
+                            updateViewModel.downloadAndInstallApk()
+                        }
+                    )
+                }
+
                 Scaffold(
                     modifier = Modifier.fillMaxSize()
                 ) { innerPadding ->
@@ -143,7 +161,7 @@ class MainActivity : ComponentActivity() {
                     )
                 }
 
-                if (showDownloadProgress) {
+                if (showDownloadProgress || downloadProgress > 0f) {
                     UpdateProgressSheet(
                         downloadProgress = downloadProgress,
                         onDismissRequest = { /* 不允许用户关闭 */ }
@@ -151,18 +169,6 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
-    }
-
-    private fun showUpdateDialog() {
-        AlertDialog.Builder(this)
-            .setTitle("有版本更新 (${updateViewModel.updateVersion.value})")
-            .setMessage(updateViewModel.updateDescription.value)
-            .setPositiveButton("立即更新") { _, _ ->
-                updateViewModel.downloadAndInstallApk()
-                showDownloadProgress = true
-            }
-            .setNegativeButton("下次提醒", null)
-            .show()
     }
 }
 
@@ -324,6 +330,41 @@ fun VideoLinkForm(
             }
         }
     }
+}
+
+@Composable
+fun ShowUpdateDialog(
+    updateVersion: String,
+    updateDescription: String,
+    onDismissRequest: () -> Unit = {},
+    onConfirmRequest: () -> Unit = {}
+) {
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
+        icon = {
+            Icon(
+                painter = painterResource(id = R.drawable.baseline_system_update_24),
+                contentDescription = null
+            )
+        },
+        title = {
+            Text(text = "发现新版本 $updateVersion")
+        },
+        text = {
+            Text(text = updateDescription)
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirmRequest) {
+                Text(text = "立即更新")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismissRequest) {
+                Text(text = "以后再说")
+            }
+        },
+        modifier = Modifier.padding(16.dp)
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
