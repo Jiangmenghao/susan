@@ -79,7 +79,7 @@ import java.net.URL
 
 class MainActivity : ComponentActivity() {
     private var backPressedTime: Long = 0
-    private val BACK_PRESS_INTERVAL = 2000
+    private val backPressInterval = 2000
     private lateinit var updateViewModel: UpdateViewModel
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -105,7 +105,7 @@ class MainActivity : ComponentActivity() {
                 DisposableEffect(Unit) {
                     val callback = object : OnBackPressedCallback(true) {
                         override fun handleOnBackPressed() {
-                            if (backPressedTime + BACK_PRESS_INTERVAL > System.currentTimeMillis()) {
+                            if (backPressedTime + backPressInterval > System.currentTimeMillis()) {
                                 finish()
                             } else {
                                 Toast.makeText(context, "再按一次退出Susan", Toast.LENGTH_SHORT).show()
