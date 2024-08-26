@@ -22,6 +22,9 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
     private val _updateDescription = MutableLiveData<String?>()
     val updateDescription: LiveData<String?> get() = _updateDescription
 
+    private val _downloadProgress = MutableLiveData<Int>()
+    val downloadProgress: LiveData<Int> = _downloadProgress
+
     var updateDialogShown = false
         private set
 
@@ -36,7 +39,9 @@ class UpdateViewModel(application: Application) : AndroidViewModel(application) 
 
     fun downloadAndInstallApk() {
         updateUrl.value?.let {
-            updateManager.downloadAndInstallApk(it)
+            updateManager.downloadAndInstallApk(it) { progress ->
+                _downloadProgress.postValue(progress)
+            }
         }
     }
 

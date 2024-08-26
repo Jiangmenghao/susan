@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.foundation.layout.size
@@ -39,18 +40,22 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -81,6 +86,8 @@ class MainActivity : ComponentActivity() {
     private var backPressedTime: Long = 0
     private val backPressInterval = 2000
     private lateinit var updateViewModel: UpdateViewModel
+    private var showDownloadProgress by mutableStateOf(false)
+    private var downloadProgress by mutableFloatStateOf(0f)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -96,6 +103,11 @@ class MainActivity : ComponentActivity() {
                 updateViewModel.setUpdateDialogShown(true)
             }
         }
+
+        updateViewModel.downloadProgress.observe(this) { progress ->
+            downloadProgress = progress.toFloat() / 100
+        }
+
         updateViewModel.checkForUpdates()
 
         enableEdgeToEdge()
@@ -119,18 +131,22 @@ class MainActivity : ComponentActivity() {
                     }
                 }
 
-                val snackbarHostState = remember { SnackbarHostState() }
                 Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
+                    modifier = Modifier.fillMaxSize()
                 ) { innerPadding ->
                     SusanAppLayout(
-                        snackbarHostState = snackbarHostState,
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(innerPadding)
                             .safeContentPadding()
                             .background(color = MaterialTheme.colorScheme.surface)
+                    )
+                }
+
+                if (showDownloadProgress) {
+                    UpdateProgressSheet(
+                        downloadProgress = downloadProgress,
+                        onDismissRequest = { /* 不允许用户关闭 */ }
                     )
                 }
             }
@@ -143,6 +159,7 @@ class MainActivity : ComponentActivity() {
             .setMessage(updateViewModel.updateDescription.value)
             .setPositiveButton("立即更新") { _, _ ->
                 updateViewModel.downloadAndInstallApk()
+                showDownloadProgress = true
             }
             .setNegativeButton("下次提醒", null)
             .show()
@@ -151,7 +168,6 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun SusanAppLayout(
-    snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -166,13 +182,12 @@ fun SusanAppLayout(
             fontWeight = FontWeight.Bold,
             fontFamily = FontFamily.Serif
         )
-        VideoLinkForm(snackbarHostState)
+        VideoLinkForm()
     }
 }
 
 @Composable
 fun VideoLinkForm(
-    snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier
 ) {
     var videoLink by remember { mutableStateOf("") }
@@ -226,7 +241,6 @@ fun VideoLinkForm(
                                 apiUrl,
                                 { isUrlValid = it },
                                 { isLoading = it },
-                                snackbarHostState,
                                 context
                             )
                         }
@@ -266,7 +280,6 @@ fun VideoLinkForm(
                             apiUrl,
                             { isUrlValid = it },
                             { isLoading = it },
-                            snackbarHostState,
                             context
                         )
                     }
@@ -313,12 +326,51 @@ fun VideoLinkForm(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun UpdateProgressSheet(
+    downloadProgress: Float,
+    onDismissRequest: () -> Unit
+) {
+    var isInstalling by remember { mutableStateOf(false) }
+
+    LaunchedEffect(downloadProgress) {
+        if (downloadProgress >= 1f) {
+            isInstalling = true
+        }
+    }
+
+    val sheetState = rememberModalBottomSheetState()
+    ModalBottomSheet(
+        onDismissRequest = onDismissRequest,
+        sheetState = sheetState
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(if (isInstalling) "安装中" else "正在下载更新")
+            Spacer(modifier = Modifier.height(16.dp))
+            if (!isInstalling) {
+                LinearProgressIndicator(
+                    progress = { downloadProgress },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text("${(downloadProgress * 100).toInt()}%")
+            } else {
+                CircularProgressIndicator()
+            }
+        }
+    }
+}
+
 suspend fun handlePlayButtonClick(
     videoLink: String,
     apiUrl: String,
     updateUrlValidity: (Boolean) -> Unit,
     updateLoadingState: (Boolean) -> Unit,
-    snackbarHostState: SnackbarHostState,
     context: Context
 ) {
     val isValid = isValidUrl(videoLink)
@@ -348,7 +400,7 @@ suspend fun handlePlayButtonClick(
                 is CancellationException -> Log.d("API_CANCELLED", "API请求已取消")
                 else -> {
                     Log.e("API_ERROR", "解析失败: ${e.message}")
-                    snackbarHostState.showSnackbar("解析失败，请稍后重试")
+                    Toast.makeText(context, "解析失败，请稍后重试", Toast.LENGTH_SHORT).show()
                 }
             }
         } finally {
@@ -356,7 +408,7 @@ suspend fun handlePlayButtonClick(
         }
     } else {
         Log.d("URL_VALIDATION", "无效的URL")
-        snackbarHostState.showSnackbar("请输入正确的URL")
+        Toast.makeText(context, "请输入正确的URL", Toast.LENGTH_SHORT).show()
     }
 }
 

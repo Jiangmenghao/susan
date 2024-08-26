@@ -53,7 +53,7 @@ class UpdateManager(private val context: Context) {
         })
     }
 
-    fun downloadAndInstallApk(updateUrl: String) {
+    fun downloadAndInstallApk(updateUrl: String, onProgressUpdate: (Int) -> Unit) {
         val request = Request.Builder().url(updateUrl).build()
         
         client.newCall(request).enqueue(object : Callback {
@@ -82,8 +82,7 @@ class UpdateManager(private val context: Context) {
                                     fileOutputStream.write(buffer, 0, bytes)
                                     downloadedBytes += bytes
                                     val progress = (downloadedBytes * 100 / totalBytes).toInt()
-                                    // 更新下载进度
-                                    // 可以在这里添加更新UI进度的逻辑
+                                    onProgressUpdate(progress)
                                 }
                             }
                         }
