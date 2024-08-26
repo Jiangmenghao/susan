@@ -162,6 +162,10 @@ class PlayerActivity : ComponentActivity() {
             0
         )
 
+        if (isMuted && audioManager.getStreamVolume(AudioManager.STREAM_MUSIC) > 0) {
+            isMuted = false
+        }
+
         val currentVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
         val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
         val volumePercentage = (currentVolume.toFloat() / maxVolume * 100).toInt()
