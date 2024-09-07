@@ -1,5 +1,6 @@
 package dev.letconst.susan.utils
 
+import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -60,6 +61,7 @@ fun formatUrl(url: String): String {
     val platformId = getPlatformId(videoLink = url)
 
     return when (platformId) {
+        1 -> formatIqiyiUrl(url = url)
         3 -> formatWeTVUrl(url = url)
         8 -> formatBilibiliUrl(url = url)
         else -> url
@@ -88,4 +90,14 @@ fun formatWeTVUrl(url: String): String {
     }
 
     return url
+}
+
+fun formatIqiyiUrl(url: String): String {
+    var parsedUri = Uri.parse(url)
+
+    if (parsedUri.toString().startsWith("https://m.iqiyi.com")) {
+        parsedUri = Uri.parse(url.replace("https://m.iqiyi.com", "https://www.iqiyi.com"))
+    }
+
+    return parsedUri.scheme + "://" + parsedUri.host + parsedUri.path
 }
