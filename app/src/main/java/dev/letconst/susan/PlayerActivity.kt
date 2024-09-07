@@ -84,12 +84,37 @@ class PlayerActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val videoDataString = intent.getStringExtra("API_RESPONSE")
         videoDataString?.let {
-            val jsonData = JSONObject(videoDataString)
+            val jsonData = JSONObject(it)
+            val episodesData = jsonData.optJSONObject("episodes")
             val video = Video(
                 url = jsonData.getString("url"),
-                name = if (jsonData.has("name")) jsonData.getString("name") else null,
+                name = if (jsonData.has("name")) {
+                    jsonData.getString("name")
+                } else {
+                    episodesData?.getString("title")
+                },
                 next = if (jsonData.has("next")) jsonData.getString("next") else null,
-                ggdmapi = if (jsonData.has("ggdmapi")) jsonData.getString("ggdmapi") else null
+                ggdmapi = if (jsonData.has("ggdmapi")) jsonData.getString("ggdmapi") else null,
+                episodes = episodesData?.let { episodesObj ->
+                    Episodes(
+                        coverImage = episodesObj.getString("coverImage"),
+                        title = episodesObj.getString("title"),
+                        subtitles = episodesObj.getJSONArray("subtitles").let { subtitlesArray ->
+                            List(subtitlesArray.length()) { index -> subtitlesArray.getString(index) }
+                        },
+                        description = episodesObj.getString("description"),
+                        episodes = episodesObj.getJSONArray("episodes").let { episodesArray ->
+                            List(episodesArray.length()) { index ->
+                                val episode = episodesArray.getJSONObject(index)
+                                EpisodeItem(
+                                    title = episode.getString("title"),
+                                    url = episode.getString("url"),
+                                    active = episode.getBoolean("active")
+                                )
+                            }
+                        }
+                    )
+                }
             )
             videoData = video
         }
@@ -211,11 +236,32 @@ class PlayerActivity : ComponentActivity() {
                     val apiUrl = getString(R.string.api_url)
                     val apiResponse = fetchApiResponse(apiUrl, nextUrl)
                     val jsonData = JSONObject(apiResponse)
+                    val episodesData = jsonData.optJSONObject("episodes")
                     val newVideo = Video(
                         url = jsonData.getString("url"),
-                        name = if (jsonData.has("name")) jsonData.getString("name") else null,
+                        name = if (jsonData.has("name")) jsonData.getString("name") else episodesData?.getString("title"),
                         next = if (jsonData.has("next")) jsonData.getString("next") else null,
-                        ggdmapi = if (jsonData.has("ggdmapi")) jsonData.getString("ggdmapi") else null
+                        ggdmapi = if (jsonData.has("ggdmapi")) jsonData.getString("ggdmapi") else null,
+                        episodes = episodesData?.let { episodesObj ->
+                            Episodes(
+                                coverImage = episodesObj.getString("coverImage"),
+                                title = episodesObj.getString("title"),
+                                subtitles = episodesObj.getJSONArray("subtitles").let { 
+                                    List(it.length()) { index -> it.getString(index) } 
+                                },
+                                description = episodesObj.getString("description"),
+                                episodes = episodesObj.getJSONArray("episodes").let {
+                                    List(it.length()) { index ->
+                                        val episode = it.getJSONObject(index)
+                                        EpisodeItem(
+                                            title = episode.getString("title"),
+                                            url = episode.getString("url"),
+                                            active = episode.getBoolean("active")
+                                        )
+                                    }
+                                }
+                            )
+                        }
                     )
                     videoData = newVideo
                     player.setMediaItem(MediaItem.fromUri(newVideo.url))
