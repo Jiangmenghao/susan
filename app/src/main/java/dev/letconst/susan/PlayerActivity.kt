@@ -29,7 +29,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
@@ -406,7 +408,9 @@ fun PortraitLayout(
                 onToggleMute = onToggleMute,
                 isMuted = isMuted,
                 isLoading = isLoading,
-                onNextVideo = onNextVideo
+                onNextVideo = onNextVideo,
+                onBackPressed = onBackPressed,
+                modifier = Modifier.fillMaxHeight()
             )
         }
     }
@@ -443,17 +447,28 @@ fun RemoteController(
     isMuted: Boolean,
     isLoading: Boolean,
     onNextVideo: () -> Unit,
+    onBackPressed: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(24.dp),
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.fillMaxHeight()
+        modifier = modifier
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            FilledTonalIconButton(
+                onClick = { onBackPressed() },
+                modifier = Modifier.size(64.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Home,
+                    contentDescription = "首页",
+                    modifier = Modifier.size(32.dp)
+                )
+            }
             FilledTonalIconButton(
                 onClick = onNextVideo,
                 enabled = !isLoading,
@@ -488,31 +503,46 @@ fun RemoteController(
         }
         
         Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = modifier
-                .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(percent = 50))
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             FilledTonalIconButton(
-                onClick = { onVolumeChange(true) },
+                onClick = {},
                 modifier = Modifier.size(64.dp)
             ) {
                 Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "音量增加",
+                    imageVector = Icons.AutoMirrored.Filled.List,
+                    contentDescription = "菜单",
                     modifier = Modifier.size(32.dp)
                 )
             }
 
-            FilledTonalIconButton(
-                onClick = { onVolumeChange(false) },
-                modifier = Modifier.size(64.dp)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier
+                    .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(percent = 50))
             ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.baseline_remove_24),
-                    contentDescription = "音量减少",
-                    modifier = Modifier.size(32.dp)
-                )
+                FilledTonalIconButton(
+                    onClick = { onVolumeChange(true) },
+                    modifier = Modifier.size(64.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "音量增加",
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+
+                FilledTonalIconButton(
+                    onClick = { onVolumeChange(false) },
+                    modifier = Modifier.size(64.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.baseline_remove_24),
+                        contentDescription = "音量减少",
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
             }
         }
     }
