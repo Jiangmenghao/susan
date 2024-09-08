@@ -40,14 +40,19 @@ import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SheetState
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,6 +60,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -67,6 +73,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import dev.letconst.susan.components.EpisodeDetail
 import dev.letconst.susan.ui.theme.SusanTheme
 import dev.letconst.susan.utils.fetchApiResponse
 import kotlinx.coroutines.Job
@@ -152,7 +159,8 @@ class PlayerActivity : ComponentActivity() {
                         onToggleMute = { toggleMute() },
                         isLoading = isLoading,
                         onNextVideo = { loadNextVideo() },
-                        snackbarHostState = snackbarHostState
+                        snackbarHostState = snackbarHostState,
+                        switchVideo = { url, title -> switchVideo(url, title) }
                     )
                 } ?: Text("视频信息未完全初始化")
             }
@@ -228,55 +236,63 @@ class PlayerActivity : ComponentActivity() {
         }
     }
 
-    private fun loadNextVideo() {
+    private fun loadVideo(url: String, title: String? = null) {
         vibrateDevice()
-        videoData?.next?.let { nextUrl ->
-            isLoading = true
-            showSnackbar("正在加载下一集")
-            lifecycleScope.launch {
-                try {
-                    val apiUrl = getString(R.string.api_url)
-                    val apiResponse = fetchApiResponse(apiUrl, nextUrl)
-                    val jsonData = JSONObject(apiResponse)
-                    val episodesData = jsonData.optJSONObject("episodes")
-                    val newVideo = Video(
-                        url = jsonData.getString("url"),
-                        name = if (jsonData.has("name")) jsonData.getString("name") else episodesData?.getString("title"),
-                        next = if (jsonData.has("next")) jsonData.getString("next") else null,
-                        ggdmapi = if (jsonData.has("ggdmapi")) jsonData.getString("ggdmapi") else null,
-                        episodes = episodesData?.let { episodesObj ->
-                            Episodes(
-                                coverImage = episodesObj.getString("coverImage"),
-                                title = episodesObj.getString("title"),
-                                subtitles = episodesObj.getJSONArray("subtitles").let { 
-                                    List(it.length()) { index -> it.getString(index) } 
-                                },
-                                description = episodesObj.getString("description"),
-                                episodes = episodesObj.getJSONArray("episodes").let {
-                                    List(it.length()) { index ->
-                                        val episode = it.getJSONObject(index)
-                                        EpisodeItem(
-                                            title = episode.getString("title"),
-                                            url = episode.getString("url"),
-                                            active = episode.getBoolean("active")
-                                        )
-                                    }
+        isLoading = true
+        showSnackbar("正在加载 ${title ?: "下一集"}")
+        lifecycleScope.launch {
+            try {
+                val apiUrl = getString(R.string.api_url)
+                val apiResponse = fetchApiResponse(apiUrl, url)
+                val jsonData = JSONObject(apiResponse)
+                val episodesData = jsonData.optJSONObject("episodes")
+                val newVideo = Video(
+                    url = jsonData.getString("url"),
+                    name = if (jsonData.has("name")) jsonData.getString("name") else episodesData?.getString("title"),
+                    next = if (jsonData.has("next")) jsonData.getString("next") else null,
+                    ggdmapi = if (jsonData.has("ggdmapi")) jsonData.getString("ggdmapi") else null,
+                    episodes = episodesData?.let { episodesObj ->
+                        Episodes(
+                            coverImage = episodesObj.getString("coverImage"),
+                            title = episodesObj.getString("title"),
+                            subtitles = episodesObj.getJSONArray("subtitles").let { 
+                                List(it.length()) { index -> it.getString(index) } 
+                            },
+                            description = episodesObj.getString("description"),
+                            episodes = episodesObj.getJSONArray("episodes").let {
+                                List(it.length()) { index ->
+                                    val episode = it.getJSONObject(index)
+                                    EpisodeItem(
+                                        title = episode.getString("title"),
+                                        url = episode.getString("url"),
+                                        active = episode.getBoolean("active")
+                                    )
                                 }
-                            )
-                        }
-                    )
-                    videoData = newVideo
-                    player.setMediaItem(MediaItem.fromUri(newVideo.url))
-                    player.prepare()
-                    player.playWhenReady = true
-                    showSnackbar("下一集加载完成")
-                } catch (e: Exception) {
-                    showSnackbar("加载下一集失败：${e.message}")
-                } finally {
-                    isLoading = false
-                }
+                            }
+                        )
+                    }
+                )
+                videoData = newVideo
+                player.setMediaItem(MediaItem.fromUri(newVideo.url))
+                player.prepare()
+                player.playWhenReady = true
+                showSnackbar("视频加载完成")
+            } catch (e: Exception) {
+                showSnackbar("加载视频失败：${e.message}")
+            } finally {
+                isLoading = false
             }
+        }
+    }
+
+    private fun loadNextVideo() {
+        videoData?.next?.let { nextUrl ->
+            loadVideo(nextUrl)
         } ?: showSnackbar("无下一集")
+    }
+
+    private fun switchVideo(url: String, title: String?) {
+        loadVideo(url, title)
     }
 
     override fun onPause() {
@@ -290,6 +306,7 @@ class PlayerActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppLayout(
     video: Video,
@@ -301,12 +318,16 @@ fun AppLayout(
     isLoading: Boolean,
     onNextVideo: () -> Unit,
     snackbarHostState: SnackbarHostState,
+    switchVideo: (String, String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val windowInsetsController = WindowCompat.getInsetsController(window, window.decorView)
     val context = LocalContext.current
     val activity = context as? PlayerActivity
+    val sheetState = rememberModalBottomSheetState()
+    val scope = rememberCoroutineScope()
+    var showBottomSheet by remember { mutableStateOf(false) }
 
     if (isLandscape) {
         windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -331,8 +352,35 @@ fun AppLayout(
             isMuted = isMuted,
             isLoading = isLoading,
             onNextVideo = onNextVideo,
+            onMenuShow = {
+                if (video.episodes != null) {
+                    showBottomSheet = true
+                }
+            },
             modifier = modifier
         )
+
+        if (showBottomSheet) {
+            MenuBottomSheet(
+                sheetState = sheetState,
+                onDismiss = {
+                    scope.launch { sheetState.hide() }.invokeOnCompletion {
+                        if (!sheetState.isVisible) {
+                            showBottomSheet = false
+                        }
+                    }
+                },
+                episodes = video.episodes,
+                onSwitchEpisode = { url, title ->
+                    scope.launch { sheetState.hide() }.invokeOnCompletion {
+                        if (!sheetState.isVisible) {
+                            showBottomSheet = false
+                        }
+                    }
+                    switchVideo(url, title)
+                }
+            )
+        }
     }
 }
 
@@ -356,6 +404,7 @@ fun PortraitLayout(
     isMuted: Boolean,
     isLoading: Boolean,
     onNextVideo: () -> Unit,
+    onMenuShow: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -410,6 +459,7 @@ fun PortraitLayout(
                 isLoading = isLoading,
                 onNextVideo = onNextVideo,
                 onBackPressed = onBackPressed,
+                onMenuShow = onMenuShow,
                 modifier = Modifier.fillMaxHeight()
             )
         }
@@ -448,6 +498,7 @@ fun RemoteController(
     isLoading: Boolean,
     onNextVideo: () -> Unit,
     onBackPressed: () -> Unit,
+    onMenuShow: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -507,7 +558,7 @@ fun RemoteController(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             FilledTonalIconButton(
-                onClick = {},
+                onClick = { onMenuShow() },
                 modifier = Modifier.size(64.dp)
             ) {
                 Icon(
@@ -544,6 +595,31 @@ fun RemoteController(
                     )
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun MenuBottomSheet(
+    sheetState: SheetState,
+    onDismiss: () -> Unit,
+    episodes: Episodes?,
+    onSwitchEpisode: (url: String, title: String?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    ModalBottomSheet(
+        onDismissRequest = { onDismiss() },
+        sheetState = sheetState,
+        modifier = modifier
+    ) {
+        if (episodes != null) {
+            EpisodeDetail(
+                episodeDetail = episodes,
+                onSelect = onSwitchEpisode
+            )
+        } else {
+            Text(text = "暂无剧集数据", textAlign = TextAlign.Center)
         }
     }
 }
