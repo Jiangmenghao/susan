@@ -18,7 +18,8 @@ Android 7.0 及以上
 
 ## 截图
 
-<img src="./screenshot/screenshot.webp" alt="Android 截图" height="500"/>
+<img src="./screenshot/screenshot_mobile_home.webp" alt="Android 首页截图"/>
+<img src="./screenshot/screenshot_mobile_player.webp" alt="Android 播放页截图"/>
 
 ## 下载
 
@@ -28,4 +29,4 @@ Android 7.0 及以上
 
 [黑猫VIP视频解析](https://vip.heimaokeji.xyz)，Susan 的 Web 版前身，支持弹幕、保存播放记录、自动搜寻下一集等实用功能，已适配多端、多浏览器及深色模式。
 
-<img src="./screenshot/screenshot_web.webp" alt="Android 截图" height="500"/>
+<img src="./screenshot/screenshot_web.webp" alt="Android 截图"/>
