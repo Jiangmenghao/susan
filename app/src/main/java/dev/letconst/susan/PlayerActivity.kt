@@ -332,7 +332,7 @@ fun AppLayout(
     if (isLandscape) {
         windowInsetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
         windowInsetsController.hide(WindowInsetsCompat.Type.systemBars())
-        Toast.makeText(context, "旋转至竖屏，可退出全屏模式", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "旋转回竖屏，可退出全屏模式", Toast.LENGTH_SHORT).show()
         LandscapeLayout(
             player = player,
             modifier = modifier
@@ -441,12 +441,13 @@ fun PortraitLayout(
             )
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = Alignment.Bottom,
                 modifier = modifier.padding(vertical = 16.dp)
             ) {
                 Icon(
                     imageVector = Icons.Default.Refresh,
-                    contentDescription = null
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp)
                 )
                 Text(
                     text = "旋转屏幕进入全屏模式"
