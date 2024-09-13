@@ -27,7 +27,12 @@ suspend fun fetchApiResponse(apiUrl: String, videoLink: String): String {
 
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw IOException("Unexpected code $response")
-            return@withContext response.body?.string() ?: ""
+            
+            val responseBody = response.body?.string() ?: "{}"
+            val jsonResponse = JSONObject(responseBody).apply {
+                put("current", videoLink)
+            }
+            return@withContext jsonResponse.toString()
         }
     }
 }

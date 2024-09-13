@@ -1,5 +1,7 @@
 package dev.letconst.susan
 
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.res.Configuration
 import android.media.AudioManager
@@ -32,9 +34,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -64,6 +69,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.ContextCompat.getSystemService
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -92,6 +98,7 @@ class PlayerActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         val videoDataString = intent.getStringExtra("API_RESPONSE")
+        println(videoDataString)
         videoDataString?.let {
             val jsonData = JSONObject(it)
             val episodesData = jsonData.optJSONObject("episodes")
@@ -102,6 +109,7 @@ class PlayerActivity : ComponentActivity() {
                 } else {
                     episodesData?.getString("title")
                 },
+                current = if (jsonData.has("current")) jsonData.getString("current") else null,
                 next = if (jsonData.has("next")) jsonData.getString("next") else null,
                 ggdmapi = if (jsonData.has("ggdmapi")) jsonData.getString("ggdmapi") else null,
                 episodes = episodesData?.let { episodesObj ->
@@ -249,6 +257,7 @@ class PlayerActivity : ComponentActivity() {
                 val newVideo = Video(
                     url = jsonData.getString("url"),
                     name = if (jsonData.has("name")) jsonData.getString("name") else episodesData?.getString("title"),
+                    current = if (jsonData.has("current")) jsonData.getString("current") else null,
                     next = if (jsonData.has("next")) jsonData.getString("next") else null,
                     ggdmapi = if (jsonData.has("ggdmapi")) jsonData.getString("ggdmapi") else null,
                     episodes = episodesData?.let { episodesObj ->
@@ -421,6 +430,9 @@ fun PortraitLayout(
                     IconButton(onClick = onBackPressed) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                     }
+                },
+                actions = {
+                    TopAppBarDropdownMenu(videoData = video)
                 }
             )
         },
@@ -622,5 +634,38 @@ fun MenuBottomSheet(
         } else {
             Text(text = "暂无剧集数据", textAlign = TextAlign.Center)
         }
+    }
+}
+
+@Composable
+fun TopAppBarDropdownMenu(videoData: Video?) {
+    val expanded = remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    
+    IconButton(onClick = { expanded.value = true }) {
+        Icon(Icons.Default.MoreVert, contentDescription = "更多")
+    }
+
+    DropdownMenu(
+        expanded = expanded.value,
+        onDismissRequest = { expanded.value = false }
+    ) {
+        DropdownMenuItem(
+            text = {
+                Text(text = "复制链接")
+            },
+            onClick = { 
+                expanded.value = false
+                videoData?.current?.let { current ->
+                    val clipboard = getSystemService(context, ClipboardManager::class.java) as ClipboardManager
+                    val clip = ClipData.newPlainText("Video URL", current)
+                    clipboard.setPrimaryClip(clip)
+                    Toast.makeText(context, "链接已复制", Toast.LENGTH_SHORT).show()
+                }
+            },
+            leadingIcon = {
+                Icon(painter = painterResource(id = R.drawable.baseline_link_24), contentDescription = null)
+            }
+        )
     }
 }

@@ -13,6 +13,7 @@ data class Episodes(
 data class Video(
     val url: String,
     val name: String?,
+    val current: String?,
     val next: String?,
     val ggdmapi: String?,
     val episodes: Episodes?
