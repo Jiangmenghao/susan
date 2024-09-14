@@ -38,12 +38,14 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -51,6 +53,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -91,6 +94,7 @@ class MainActivity : ComponentActivity() {
     private var showDownloadProgress by mutableStateOf(false)
     private var downloadProgress by mutableFloatStateOf(0f)
 
+    @OptIn(ExperimentalMaterial3Api::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -150,7 +154,15 @@ class MainActivity : ComponentActivity() {
                 }
 
                 Scaffold(
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    topBar = {
+                        TopAppBar(
+                            title = {},
+                            actions = {
+                                TopAppBarAction()
+                            }
+                        )
+                    }
                 ) { innerPadding ->
                     SusanAppLayout(
                         modifier = Modifier
@@ -459,5 +471,21 @@ fun isValidUrl(url: String): Boolean {
         true
     } catch (e: Exception) {
         false
+    }
+}
+
+@Composable
+fun TopAppBarAction() {
+    val context = LocalContext.current
+    val intent = Intent(context, SearchActivity::class.java)
+
+    IconButton(onClick = {
+        context.startActivity(intent)
+    }) {
+        Icon(
+            imageVector = Icons.Default.Search,
+            contentDescription = "搜索",
+            modifier = Modifier.size(32.dp)
+        )
     }
 }
