@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Card
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -38,6 +39,7 @@ import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -65,10 +67,13 @@ import kotlinx.coroutines.launch
 class DetailActivity : ComponentActivity() {
     private var videoId: Int = -1
     private var videoDetail = mutableStateOf<VideoDetail?>(null)
+    private var isLoading = mutableStateOf(false)
 
     private fun getDetail(id: Int) {
+        isLoading.value = true
+        val apiUrl = getString(R.string.detail_api)
         CoroutineScope(Dispatchers.IO).launch {
-            val response = fetchSearchDetail(apiUrl = "https://vip.heimaokeji.xyz/api/detail", id = id)
+            val response = fetchSearchDetail(apiUrl = apiUrl, id = id)
             response?.let {
                 val detail = VideoDetail(
                     id = it.getInt("vod_id"),
@@ -83,6 +88,7 @@ class DetailActivity : ComponentActivity() {
                 )
                 videoDetail.value = detail
             }
+            isLoading.value = false
         }
     }
 
@@ -110,11 +116,22 @@ class DetailActivity : ComponentActivity() {
                     },
                     modifier = Modifier.fillMaxSize()
                 ) { innerPadding ->
-                    DetailScreen(
-                        videoDetail = videoDetail.value,
-                        modifier = Modifier
-                            .padding(innerPadding)
-                    )
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        DetailScreen(
+                            videoDetail = videoDetail.value,
+                            isLoading = isLoading,
+                            modifier = Modifier
+                                .padding(innerPadding)
+                        )
+                        if (isLoading.value) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+                            )
+                            CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                        }
+                    }
                 }
             }
         }
@@ -124,6 +141,7 @@ class DetailActivity : ComponentActivity() {
 @Composable
 fun DetailScreen(
     videoDetail: VideoDetail?,
+    isLoading: MutableState<Boolean>,
     modifier: Modifier = Modifier
 ) {
     videoDetail?.let {
@@ -134,7 +152,7 @@ fun DetailScreen(
         ) {
             CoverImageAndInfo(videoDetail = videoDetail)
 
-            EpisodesPanel(videoDetail = videoDetail)
+            EpisodesPanel(videoDetail = videoDetail, isLoading = isLoading)
         }
     } ?: run {
         Text(text = "Video detail is not available")
@@ -154,7 +172,7 @@ fun CoverImageAndInfo(
     ) {
         AsyncImage(
             model = videoDetail.pic,
-            contentDescription = "Cover Image",
+            contentDescription = "封面图片",
             modifier = Modifier
                 .weight(2f)
                 .height(224.dp)
@@ -189,7 +207,8 @@ fun CoverImageAndInfo(
 
 @Composable
 fun EpisodesPanel(
-    videoDetail: VideoDetail
+    videoDetail: VideoDetail,
+    isLoading: MutableState<Boolean>
 ) {
     val tabLabels = videoDetail.episodes?.map { it.platform } ?: emptyList()
     var tabState by remember { mutableIntStateOf(0) }
@@ -199,6 +218,9 @@ fun EpisodesPanel(
     val coroutineScope = rememberCoroutineScope()
 
     fun handleSelect(episode: EpisodeItem) {
+        if (isLoading.value) return
+
+        isLoading.value = true
         coroutineScope.launch {
             try {
                 val response = fetchApiResponse(parseApi, episode.url)
@@ -220,6 +242,8 @@ fun EpisodesPanel(
             } catch (e: Exception) {
                 Log.e("API_ERROR", "解析失败: ${e.message}")
                 Toast.makeText(context, "解析失败，请稍后重试", Toast.LENGTH_SHORT).show()
+            } finally {
+                isLoading.value = false // 结束加载
             }
         }
     }
