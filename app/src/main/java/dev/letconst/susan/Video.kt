@@ -1,6 +1,10 @@
 package dev.letconst.susan
 
-data class EpisodeItem(val title: String, val url: String, val active: Boolean)
+data class EpisodeItem(
+    val title: String,
+    val url: String,
+    val active: Boolean?
+)
 
 data class Episodes(
     val coverImage: String,

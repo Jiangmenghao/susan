@@ -102,15 +102,15 @@ fun EpisodeDetail(episodeDetail: Episodes, onSelect: (String, String?) -> Unit) 
 
 @Composable
 fun EpisodeItemView(episode: EpisodeItem, onSelect: (String, String?) -> Unit) {
-    val backgroundColor = if (episode.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
-    val textColor = if (episode.active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+    val backgroundColor = if (episode.active == true) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface
+    val textColor = if (episode.active == true) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
 
     Box(
         modifier = Modifier
             .padding(8.dp)
             .background(backgroundColor, RoundedCornerShape(8.dp))
             .clickable {
-                if (!episode.active) onSelect(episode.url, episode.title)
+                if (episode.active != true) onSelect(episode.url, episode.title)
             }
             .fillMaxWidth()
             .height(50.dp),

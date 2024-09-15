@@ -1,6 +1,8 @@
 package dev.letconst.susan.utils
 
 import android.net.Uri
+import dev.letconst.susan.EpisodeItem
+import dev.letconst.susan.PlatformUrls
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -122,5 +124,53 @@ fun fetchSearchResult(apiUrl: String, keyword: String): JSONObject {
         
         val responseBody = response.body?.string() ?: "{}"
         return JSONObject(responseBody)
+    }
+}
+
+fun fetchSearchDetail(apiUrl: String, id: Int): JSONObject? {
+    val query = "?ids=$id"
+    val requestUrl = "$apiUrl$query"
+    println(requestUrl)
+    val client = OkHttpClient()
+
+    val request = Request.Builder()
+        .url(requestUrl)
+        .get()
+        .build()
+
+    client.newCall(request).execute().use { response ->
+        if (!response.isSuccessful) throw IOException("Unexpected code $response")
+
+        val responseBody = response.body?.string() ?: "{}"
+        val list = JSONObject(responseBody).getJSONArray("list")
+        if (list.length() > 0) {
+            return list.getJSONObject(0)
+        } else {
+            return null
+        }
+    }
+}
+
+fun parsePlayUrlsFromDetail(vodPlayFrom: String, vodPlayUrl: String): List<PlatformUrls> {
+    fun formatPlatformName(platform: String): String {
+        return when (platform) {
+            "qiyi" -> "爱奇艺"
+            "youku" -> "优酷"
+            "qq" -> "腾讯"
+            "mgtv" -> "芒果"
+            "bilibili" -> "哔哩哔哩"
+            else -> platform
+        }
+    }
+
+    val platforms = vodPlayFrom.split("$$$").map { formatPlatformName(it) }
+    val urlGroups = vodPlayUrl.split("$$$")
+
+    return platforms.mapIndexed { index, platform ->
+        val urls = urlGroups[index].split("#").map { url ->
+            val (title, link) = url.split("$")
+            EpisodeItem(title, link, false)
+        }
+        PlatformUrls(platform, urls)
     }
 }
