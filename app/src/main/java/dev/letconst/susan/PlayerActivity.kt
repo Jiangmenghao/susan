@@ -3,6 +3,7 @@ package dev.letconst.susan
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.content.res.Configuration
 import android.media.AudioManager
 import android.os.Build
@@ -168,7 +169,8 @@ class PlayerActivity : ComponentActivity() {
                         isLoading = isLoading,
                         onNextVideo = { loadNextVideo() },
                         snackbarHostState = snackbarHostState,
-                        switchVideo = { url, title -> switchVideo(url, title) }
+                        switchVideo = { url, title -> switchVideo(url, title) },
+                        onHomePressed = { onHomePressed() }
                     )
                 } ?: Text("视频信息未完全初始化")
             }
@@ -304,6 +306,11 @@ class PlayerActivity : ComponentActivity() {
         loadVideo(url, title)
     }
 
+    private fun onHomePressed() {
+        finishAffinity()
+        startActivity(Intent(this, MainActivity::class.java))
+    }
+
     override fun onPause() {
         super.onPause()
         player.pause()
@@ -328,6 +335,7 @@ fun AppLayout(
     onNextVideo: () -> Unit,
     snackbarHostState: SnackbarHostState,
     switchVideo: (String, String?) -> Unit,
+    onHomePressed: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -366,6 +374,7 @@ fun AppLayout(
                     showBottomSheet = true
                 }
             },
+            onHomePressed = onHomePressed,
             modifier = modifier
         )
 
@@ -414,6 +423,7 @@ fun PortraitLayout(
     isLoading: Boolean,
     onNextVideo: () -> Unit,
     onMenuShow: () -> Unit,
+    onHomePressed: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Scaffold(
@@ -471,7 +481,7 @@ fun PortraitLayout(
                 isMuted = isMuted,
                 isLoading = isLoading,
                 onNextVideo = onNextVideo,
-                onBackPressed = onBackPressed,
+                onHomePressed = onHomePressed,
                 onMenuShow = onMenuShow,
                 modifier = Modifier.fillMaxHeight()
             )
@@ -510,7 +520,7 @@ fun RemoteController(
     isMuted: Boolean,
     isLoading: Boolean,
     onNextVideo: () -> Unit,
-    onBackPressed: () -> Unit,
+    onHomePressed: () -> Unit,
     onMenuShow: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -524,7 +534,7 @@ fun RemoteController(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             FilledTonalIconButton(
-                onClick = { onBackPressed() },
+                onClick = onHomePressed,
                 modifier = Modifier.size(64.dp)
             ) {
                 Icon(
@@ -571,7 +581,7 @@ fun RemoteController(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             FilledTonalIconButton(
-                onClick = { onMenuShow() },
+                onClick = onMenuShow,
                 modifier = Modifier.size(64.dp)
             ) {
                 Icon(

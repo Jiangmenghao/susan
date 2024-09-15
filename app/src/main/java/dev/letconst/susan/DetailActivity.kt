@@ -79,7 +79,7 @@ class DetailActivity : ComponentActivity() {
                     id = it.getInt("vod_id"),
                     name = it.getString("vod_name"),
                     blurb = it.getString("vod_blurb"),
-                    pic = it.getString("vod_pic"),
+                    pic = it.getString("vod_pic").replace("http://", "https://"),
                     genres = it.getString("vod_class"),
                     area = it.getString("vod_year"),
                     remarks = it.getString("vod_remarks"),

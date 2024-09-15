@@ -130,7 +130,6 @@ fun fetchSearchResult(apiUrl: String, keyword: String): JSONObject {
 fun fetchSearchDetail(apiUrl: String, id: Int): JSONObject? {
     val query = "?ids=$id"
     val requestUrl = "$apiUrl$query"
-    println(requestUrl)
     val client = OkHttpClient()
 
     val request = Request.Builder()
