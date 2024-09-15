@@ -63,6 +63,7 @@ import dev.letconst.susan.utils.parsePlayUrlsFromDetail
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class DetailActivity : ComponentActivity() {
     private var videoId: Int = -1
@@ -73,22 +74,30 @@ class DetailActivity : ComponentActivity() {
         isLoading.value = true
         val apiUrl = getString(R.string.detail_api)
         CoroutineScope(Dispatchers.IO).launch {
-            val response = fetchSearchDetail(apiUrl = apiUrl, id = id)
-            response?.let {
-                val detail = VideoDetail(
-                    id = it.getInt("vod_id"),
-                    name = it.getString("vod_name"),
-                    blurb = it.getString("vod_blurb"),
-                    pic = it.getString("vod_pic").replace("http://", "https://"),
-                    genres = it.getString("vod_class"),
-                    area = it.getString("vod_year"),
-                    remarks = it.getString("vod_remarks"),
-                    score = it.getString("vod_score"),
-                    episodes = parsePlayUrlsFromDetail(response.getString("vod_play_from"), response.getString("vod_play_url"))
-                )
-                videoDetail.value = detail
+            try {
+                val response = fetchSearchDetail(apiUrl = apiUrl, id = id)
+                response?.let {
+                    val detail = VideoDetail(
+                        id = it.getInt("vod_id"),
+                        name = it.getString("vod_name"),
+                        blurb = it.getString("vod_blurb"),
+                        pic = it.getString("vod_pic").replace("http://", "https://"),
+                        genres = it.getString("vod_class"),
+                        area = it.getString("vod_year"),
+                        remarks = it.getString("vod_remarks"),
+                        score = it.getString("vod_score"),
+                        episodes = parsePlayUrlsFromDetail(response.getString("vod_play_from"), response.getString("vod_play_url"))
+                    )
+                    videoDetail.value = detail
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@DetailActivity, "${e.message}，请重试", Toast.LENGTH_LONG).show()
+                }
+                finish()
+            } finally {
+                isLoading.value = false
             }
-            isLoading.value = false
         }
     }
 

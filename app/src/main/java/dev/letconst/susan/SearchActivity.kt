@@ -43,6 +43,7 @@ import dev.letconst.susan.utils.fetchSearchResult
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SearchActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -72,23 +73,31 @@ fun SearchScreen(
     fun handleSearch(keyword: String) {
         isLoading = true
         CoroutineScope(Dispatchers.IO).launch {
-            val result = fetchSearchResult(apiUrl = searchApi, keyword = keyword)
-            isLoading = false
+            try {
+                val result = fetchSearchResult(apiUrl = searchApi, keyword = keyword)
+                isLoading = false
 
-            val list = result.getJSONArray("list")
-            val array = mutableListOf<SearchResultItem>()
+                val list = result.getJSONArray("list")
+                val array = mutableListOf<SearchResultItem>()
 
-            for (i in 0 until list.length()) {
-                val item = list.getJSONObject(i)
-                array += SearchResultItem(
-                    id = item.getInt("vod_id"),
-                    name = item.getString("vod_name"),
-                    typeName = item.getString("type_name"),
-                    remarks = item.getString("vod_remarks")
-                )
+                for (i in 0 until list.length()) {
+                    val item = list.getJSONObject(i)
+                    array += SearchResultItem(
+                        id = item.getInt("vod_id"),
+                        name = item.getString("vod_name"),
+                        typeName = item.getString("type_name"),
+                        remarks = item.getString("vod_remarks")
+                    )
+                }
+
+                searchResults = array
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "${e.message}，请重试", Toast.LENGTH_LONG).show()
+                }
+            } finally {
+                isLoading = false
             }
-
-            searchResults = array
         }
     }
 

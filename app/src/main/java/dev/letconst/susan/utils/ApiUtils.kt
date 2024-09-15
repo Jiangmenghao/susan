@@ -11,6 +11,8 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.IOException
+import java.net.SocketTimeoutException
+import java.util.concurrent.TimeUnit
 
 suspend fun fetchApiResponse(apiUrl: String, videoLink: String): String {
     return withContext(Dispatchers.IO) {
@@ -112,41 +114,60 @@ fun formatIqiyiUrl(url: String): String {
 fun fetchSearchResult(apiUrl: String, keyword: String): JSONObject {
     val query = "?wd=$keyword"
     val requestUrl = "$apiUrl$query"
-    val client = OkHttpClient()
-    
+
+    val client = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .build()
+
     val request = Request.Builder()
         .url(requestUrl)
         .get()
         .build()
 
-    client.newCall(request).execute().use { response ->
-        if (!response.isSuccessful) throw IOException("Unexpected code $response")
-        
-        val responseBody = response.body?.string() ?: "{}"
-        return JSONObject(responseBody)
+    try {
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw IOException("Unexpected code $response")
+
+            val responseBody = response.body?.string() ?: "{}"
+            return JSONObject(responseBody)
+        }
+    } catch (e: SocketTimeoutException) {
+        throw IOException("请求超时", e)
     }
 }
+
 
 fun fetchSearchDetail(apiUrl: String, id: Int): JSONObject? {
     val query = "?ids=$id"
     val requestUrl = "$apiUrl$query"
-    val client = OkHttpClient()
+
+    val client = OkHttpClient.Builder()
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .build()
 
     val request = Request.Builder()
         .url(requestUrl)
         .get()
         .build()
 
-    client.newCall(request).execute().use { response ->
-        if (!response.isSuccessful) throw IOException("Unexpected code $response")
+    try {
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw IOException("Unexpected code $response")
 
-        val responseBody = response.body?.string() ?: "{}"
-        val list = JSONObject(responseBody).getJSONArray("list")
-        if (list.length() > 0) {
-            return list.getJSONObject(0)
-        } else {
-            return null
+            val responseBody = response.body?.string() ?: "{}"
+            val list = JSONObject(responseBody).getJSONArray("list")
+            if (list.length() > 0) {
+                return list.getJSONObject(0)
+            } else {
+                return null
+            }
         }
+    } catch (e: SocketTimeoutException) {
+        throw IOException("请求超时", e)
     }
 }
 
