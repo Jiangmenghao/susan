@@ -1,5 +1,6 @@
 package dev.letconst.susan
 
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
@@ -18,6 +19,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -36,8 +38,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import dev.letconst.susan.ui.theme.SusanTheme
 import dev.letconst.susan.utils.fetchSearchResult
 import kotlinx.coroutines.CoroutineScope
@@ -57,6 +62,26 @@ class SearchActivity : ComponentActivity() {
     }
 }
 
+private const val PREFS_NAME = "SearchHistoryPrefs"
+private const val HISTORY_KEY = "search_history"
+
+private fun saveSearchHistory(context: Context, history: List<String>) {
+    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    val jsonString = Gson().toJson(history)
+    prefs.edit().putString(HISTORY_KEY, jsonString).apply()
+}
+
+private fun loadSearchHistory(context: Context): List<String> {
+    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    val jsonString = prefs.getString(HISTORY_KEY, null)
+    return if (jsonString != null) {
+        val type = object : TypeToken<List<String>>() {}.type
+        Gson().fromJson(jsonString, type)
+    } else {
+        emptyList()
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
@@ -69,9 +94,14 @@ fun SearchScreen(
     var searchResults by remember { mutableStateOf(listOf<SearchResultItem>()) }
     val keyboardController = LocalSoftwareKeyboardController.current
     val context = LocalContext.current
+    var searchHistory by remember { mutableStateOf(loadSearchHistory(context)) }
 
     fun handleSearch(keyword: String) {
         isLoading = true
+
+        searchHistory = (listOf(keyword) + searchHistory.filter { it != keyword }).take(10)
+        saveSearchHistory(context, searchHistory)
+
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val result = fetchSearchResult(apiUrl = searchApi, keyword = keyword)
@@ -143,11 +173,60 @@ fun SearchScreen(
             ) {
                 CircularProgressIndicator()
             }
-        }
+        } else if (query.isEmpty() && searchResults.isEmpty() && searchHistory.isNotEmpty()) {
+            Column {
 
-        SearchResult(
-            resultList = searchResults
-        )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "历史记录",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    IconButton(
+                        onClick = {
+                            searchHistory = emptyList()
+                            saveSearchHistory(context, searchHistory)
+                        }
+                    ) {
+                        Icon(
+                            Icons.Outlined.Delete,
+                            contentDescription = "清空历史记录"
+                        )
+                    }
+                }
+
+                LazyColumn {
+                    items(searchHistory) { historyItem ->
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    query = historyItem
+                                    handleSearch(historyItem)
+                                }
+                                .padding(16.dp)
+                        ) {
+                            Icon(painter = painterResource(id = R.drawable.baseline_history_24), contentDescription = null)
+                            Text(
+                                text = historyItem,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            SearchResult(
+                resultList = searchResults
+            )
+        }
     }
 }
 
