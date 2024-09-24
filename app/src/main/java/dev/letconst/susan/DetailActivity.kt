@@ -80,10 +80,11 @@ class DetailActivity : ComponentActivity() {
                     val detail = VideoDetail(
                         id = it.getInt("vod_id"),
                         name = it.getString("vod_name"),
-                        blurb = it.getString("vod_blurb"),
+                        blurb = it.getString("vod_content"),
                         pic = it.getString("vod_pic").replace("http://", "https://"),
                         genres = it.getString("vod_class"),
-                        area = it.getString("vod_year"),
+                        area = it.getString("vod_area"),
+                        year = it.getString("vod_year"),
                         remarks = it.getString("vod_remarks"),
                         score = it.getString("vod_score"),
                         episodes = parsePlayUrlsFromDetail(response.getString("vod_play_from"), response.getString("vod_play_url"))
