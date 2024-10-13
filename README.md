@@ -4,6 +4,8 @@ Susan 是一个简洁易用的 Android App，支持爱奇艺、优酷、腾讯�
 
 此项目仅用于 Android 开发学习、交流，请勿商用。
 
+[https://susan.letconst.dev](https://susan.letconst.dev)
+
 ## 系统要求
 
 Android 7.0 及以上
