@@ -2,34 +2,31 @@
 
 Susan 是一个简洁易用的 Android App，支持爱奇艺、优酷、腾讯、芒果、哔哩哔哩等平台的解析播放，免费观看VIP视频。
 
-此项目仅用于 Android 开发学习、交流，请勿商用。
-
 [https://susan.letconst.dev](https://susan.letconst.dev)
 
 ## 系统要求
 
 Android 7.0 及以上
 
-## 使用方式（二选一）
+## 特性
 
-### 直接搜索
+- 内置影视库，海量资源极速秒播
+- 适配深色模式
+- 适配 `Material You`（ >= Android 12），可根据系统壁纸自动变色
+- 基于算法的智能去广告功能
 
-1. 点击右上角的 `🔍` 按钮
-2. 输入影片名称，例如 `斗破苍穹年番`
-3. 点击任意集开始播放
-
-### 手动复制
+## 解析
 
 以腾讯视频为例：
 
-1. 打开腾讯视频，播放任意视频
+1. 打开腾讯视频的任意剧集
 2. 点击分享按钮，选择 「复制链接」（如：https://m.v.qq.com/x/m/play?vid=m0047xl3iup&cid=mzc0020027yzd9e）
-3. 打开 Susan，粘贴到输入框，点击播放即可
+3. 打开 Susan 底部的 `解析`，粘贴到输入框，点击 `开始解析` 即可
 
 ## 截图
 
-<img src="./screenshot/screenshot_mobile_home.webp" alt="Android 首页截图"/>
-<img src="./screenshot/screenshot_mobile_player.webp" alt="Android 播放页截图"/>
+<img src="./screenshot/screenshot_mobile_home.webp" width="49%" alt="Android 首页截图"/><img src="./screenshot/screenshot_mobile_home_dark.webp" width="49%" alt="Android 首页截图 深色模式"/>
+<img src="./screenshot/screenshot_mobile_player.webp" alt="Android 搜索页截图"/>
 
 ## 下载
 
